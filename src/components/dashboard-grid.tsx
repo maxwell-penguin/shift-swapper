@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { addMonths, eachDayOfInterval, endOfMonth, format, startOfMonth, subMonths } from "date-fns";
 import { AddShiftsModal } from "@/components/add-shifts-modal";
+import { Button, Card, ErrorState, LoadingState } from "@/components/ui";
 
 type Shift = {
   id: string;
@@ -25,15 +26,21 @@ export function DashboardGrid() {
   const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [swapShift, setSwapShift] = useState<Shift | null>(null);
   const [posting, setPosting] = useState(false);
   const [showAddShifts, setShowAddShifts] = useState(false);
 
   const loadShifts = useCallback(() => {
     setLoading(true);
+    setError(null);
     return fetch(`/api/shifts?month=${month}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Couldn't load shifts for this month.");
+        return res.json();
+      })
       .then(setShifts)
+      .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [month]);
 
@@ -70,28 +77,43 @@ export function DashboardGrid() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-4">
-        <button onClick={() => setMonth(format(subMonths(monthDate(month), 1), "yyyy-MM"))}>&larr; Prev</button>
-        <h1 className="text-lg font-semibold">{format(monthDate(month), "MMMM yyyy")}</h1>
-        <button onClick={() => setMonth(format(addMonths(monthDate(month), 1), "yyyy-MM"))}>Next &rarr;</button>
-        <button
-          onClick={() => setShowAddShifts(true)}
-          className="ml-auto rounded-md bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-        >
-          + Add my shifts
-        </button>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="secondary" onClick={() => setMonth(format(subMonths(monthDate(month), 1), "yyyy-MM"))}>
+            &larr;
+          </Button>
+          <h1 className="min-w-[10rem] text-center text-xl font-semibold text-slate-900">
+            {format(monthDate(month), "MMMM yyyy")}
+          </h1>
+          <Button variant="secondary" onClick={() => setMonth(format(addMonths(monthDate(month), 1), "yyyy-MM"))}>
+            &rarr;
+          </Button>
+        </div>
+        <Button onClick={() => setShowAddShifts(true)} className="w-full sm:w-auto">
+          Add my shifts
+        </Button>
       </div>
 
       {loading ? (
-        <p>Loading…</p>
+        <LoadingState label="Loading shifts…" />
+      ) : error ? (
+        <ErrorState message={error} onRetry={loadShifts} />
+      ) : owners.length === 0 ? (
+        <p className="py-10 text-center text-sm text-slate-500">No shifts entered for this month yet.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="border-collapse text-sm">
+        <Card className="overflow-x-auto">
+          <p className="px-3 pt-3 text-xs text-slate-400 sm:hidden">Swipe to see the full month</p>
+          <table className="w-full border-collapse text-xs sm:text-sm">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 border bg-white px-2 py-1 text-left">Don</th>
+                <th className="sticky left-0 z-10 border-b border-r border-stone-200 bg-slate-900 px-2 py-2 text-left font-medium text-white">
+                  Don
+                </th>
                 {days.map((day) => (
-                  <th key={day.toISOString()} className="border px-2 py-1">
+                  <th
+                    key={day.toISOString()}
+                    className="border-b border-stone-200 bg-slate-900 px-2 py-2 font-medium text-white"
+                  >
                     {format(day, "d")}
                   </th>
                 ))}
@@ -100,7 +122,9 @@ export function DashboardGrid() {
             <tbody>
               {owners.map((owner) => (
                 <tr key={owner.id}>
-                  <td className="sticky left-0 z-10 border bg-white px-2 py-1 font-medium">{owner.name}</td>
+                  <td className="sticky left-0 z-10 border-b border-r border-stone-200 bg-white px-2 py-1.5 font-medium text-slate-800">
+                    {owner.name}
+                  </td>
                   {days.map((day) => {
                     const shift = shiftFor(owner.id, day);
                     const isMine = !!shift && shift.ownerId === userId;
@@ -108,8 +132,12 @@ export function DashboardGrid() {
                       <td
                         key={day.toISOString()}
                         onClick={() => isMine && setSwapShift(shift!)}
-                        className={`border px-2 py-1 text-center whitespace-nowrap ${
-                          isMine ? "cursor-pointer bg-blue-50 hover:bg-blue-100" : ""
+                        className={`whitespace-nowrap border-b border-stone-200 px-2 py-1.5 text-center ${
+                          isMine
+                            ? "cursor-pointer border-l-2 border-l-amber-500 bg-amber-50 font-medium text-slate-900 hover:bg-amber-100"
+                            : shift
+                              ? "text-slate-600"
+                              : ""
                         }`}
                       >
                         {shift ? shift.startTime : ""}
@@ -120,38 +148,32 @@ export function DashboardGrid() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       {swapShift && (
         <div
-          className="fixed inset-0 flex items-center justify-center bg-black/40"
+          className="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/50 p-4"
           onClick={() => setSwapShift(null)}
         >
-          <div className="rounded-md bg-white p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <p className="mb-4">
+          <div className="w-full max-w-sm rounded-md bg-white p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <p className="mb-4 text-sm text-slate-700">
               Request a swap for your {swapShift.startTime}–{swapShift.endTime} shift on{" "}
               {format(new Date(swapShift.date), "MMM d")}?
             </p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setSwapShift(null)} className="px-3 py-1">
+              <Button variant="ghost" onClick={() => setSwapShift(null)}>
                 Cancel
-              </button>
-              <button
-                disabled={posting}
-                onClick={() => requestSwap(swapShift)}
-                className="rounded-md bg-blue-600 px-3 py-1 text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                Post swap request
-              </button>
+              </Button>
+              <Button disabled={posting} onClick={() => requestSwap(swapShift)}>
+                {posting ? "Posting…" : "Post swap request"}
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {showAddShifts && (
-        <AddShiftsModal onClose={() => setShowAddShifts(false)} onAdded={loadShifts} />
-      )}
+      {showAddShifts && <AddShiftsModal onClose={() => setShowAddShifts(false)} onAdded={loadShifts} />}
     </div>
   );
 }

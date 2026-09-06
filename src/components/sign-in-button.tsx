@@ -1,14 +1,12 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { Button } from "@/components/ui";
 
 export function SignInButton() {
   return (
-    <button
-      onClick={() => signIn("azure-ad")}
-      className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-    >
+    <Button onClick={() => signIn("azure-ad")} className="mt-2 px-5 py-2.5">
       Sign in with Microsoft
-    </button>
+    </Button>
   );
 }

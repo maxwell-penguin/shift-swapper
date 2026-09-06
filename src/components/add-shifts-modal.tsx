@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui";
 
 type Row = { date: string; startTime: string; endTime: string };
 
@@ -28,7 +29,7 @@ export function AddShiftsModal({ onClose, onAdded }: { onClose: () => void; onAd
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(row),
         });
-        if (!res.ok) throw new Error((await res.json()).error ?? "Failed to add shift");
+        if (!res.ok) throw new Error((await res.json()).error ?? "Couldn't save that shift.");
       }
       onAdded();
       onClose();
@@ -40,39 +41,39 @@ export function AddShiftsModal({ onClose, onAdded }: { onClose: () => void; onAd
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/50 p-4" onClick={onClose}>
       <div
-        className="max-h-[80vh] w-[32rem] overflow-y-auto rounded-md bg-white p-6 shadow-lg"
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-md bg-white p-5 shadow-lg sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-4 text-lg font-semibold">Add my shifts</h2>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Add my shifts</h2>
 
         <div className="space-y-2">
           {rows.map((row, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={i} className="flex flex-wrap items-center gap-2">
               <input
                 type="date"
                 value={row.date}
                 onChange={(e) => updateRow(i, { date: e.target.value })}
-                className="rounded border px-2 py-1"
+                className="rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
               <input
                 type="time"
                 value={row.startTime}
                 onChange={(e) => updateRow(i, { startTime: e.target.value })}
-                className="w-24 rounded border px-2 py-1"
+                className="w-[6.5rem] rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
-              <span>&ndash;</span>
+              <span className="text-slate-400">to</span>
               <input
                 type="time"
                 value={row.endTime}
                 onChange={(e) => updateRow(i, { endTime: e.target.value })}
-                className="w-24 rounded border px-2 py-1"
+                className="w-[6.5rem] rounded border border-stone-300 px-2 py-1.5 text-sm"
               />
               <button
                 onClick={() => setRows((prev) => prev.filter((_, idx) => idx !== i))}
                 disabled={rows.length === 1}
-                className="px-2 text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                className="ml-auto px-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"
                 aria-label="Remove date"
               >
                 &times;
@@ -81,23 +82,22 @@ export function AddShiftsModal({ onClose, onAdded }: { onClose: () => void; onAd
           ))}
         </div>
 
-        <button onClick={() => setRows((prev) => [...prev, emptyRow()])} className="mt-3 text-sm text-blue-600">
-          + Add another date
+        <button
+          onClick={() => setRows((prev) => [...prev, emptyRow()])}
+          className="mt-3 text-sm font-medium text-amber-600 hover:text-amber-700"
+        >
+          Add another date
         </button>
 
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-3 text-sm text-rose-700">{error}</p>}
 
         <div className="mt-6 flex justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-1">
+          <Button variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            disabled={saving}
-            onClick={submit}
-            className="rounded-md bg-blue-600 px-3 py-1 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
+          </Button>
+          <Button disabled={saving} onClick={submit}>
             {saving ? "Saving…" : "Save shifts"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
