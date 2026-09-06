@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { addMonths, eachDayOfInterval, endOfMonth, format, startOfMonth, subMonths } from "date-fns";
+import { AddShiftsModal } from "@/components/add-shifts-modal";
 
 type Shift = {
   id: string;
@@ -26,14 +27,19 @@ export function DashboardGrid() {
   const [loading, setLoading] = useState(true);
   const [swapShift, setSwapShift] = useState<Shift | null>(null);
   const [posting, setPosting] = useState(false);
+  const [showAddShifts, setShowAddShifts] = useState(false);
 
-  useEffect(() => {
+  const loadShifts = useCallback(() => {
     setLoading(true);
-    fetch(`/api/shifts?month=${month}`)
+    return fetch(`/api/shifts?month=${month}`)
       .then((res) => res.json())
       .then(setShifts)
       .finally(() => setLoading(false));
   }, [month]);
+
+  useEffect(() => {
+    loadShifts();
+  }, [loadShifts]);
 
   const days = useMemo(() => {
     const start = startOfMonth(monthDate(month));
@@ -68,6 +74,12 @@ export function DashboardGrid() {
         <button onClick={() => setMonth(format(subMonths(monthDate(month), 1), "yyyy-MM"))}>&larr; Prev</button>
         <h1 className="text-lg font-semibold">{format(monthDate(month), "MMMM yyyy")}</h1>
         <button onClick={() => setMonth(format(addMonths(monthDate(month), 1), "yyyy-MM"))}>Next &rarr;</button>
+        <button
+          onClick={() => setShowAddShifts(true)}
+          className="ml-auto rounded-md bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+        >
+          + Add my shifts
+        </button>
       </div>
 
       {loading ? (
@@ -135,6 +147,10 @@ export function DashboardGrid() {
             </div>
           </div>
         </div>
+      )}
+
+      {showAddShifts && (
+        <AddShiftsModal onClose={() => setShowAddShifts(false)} onAdded={loadShifts} />
       )}
     </div>
   );
