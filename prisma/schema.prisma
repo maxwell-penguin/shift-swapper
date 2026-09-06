@@ -1,0 +1,75 @@
+// Shift Swapper — core data model
+// Run `npx prisma migrate dev --name init` after setting DATABASE_URL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Neon / Supabase / any Postgres works
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  image     String?
+  createdAt DateTime @default(now())
+
+  shifts          Shift[]       @relation("ShiftOwner")
+  requestedSwaps  SwapRequest[] @relation("Requester")
+  acceptedSwaps   SwapRequest[] @relation("AcceptedBy")
+}
+
+model Shift {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation("ShiftOwner", fields: [ownerId], references: [id])
+  date      DateTime // just the calendar date, e.g. 2026-10-14T00:00:00Z
+  startTime String   // "19:00"
+  endTime   String   // "08:00" (next day, overnight shift)
+  createdAt DateTime @default(now())
+
+  // requests where THIS shift is the one being given up
+  swapRequestsAsGiven  SwapRequest[] @relation("ShiftGiven")
+  // requests where THIS shift is being offered back in a true two-way swap
+  swapRequestsAsOffered SwapRequest[] @relation("ShiftOffered")
+
+  @@index([date])
+  @@index([ownerId])
+}
+
+// Lifecycle:
+//   open              -> requester posted it, waiting for someone to agree
+//   mutual            -> both people have agreed; email sent to both re: asking the RLC
+//   pending_approval  -> (same as mutual in practice — kept for clarity in UI copy)
+//   approved          -> RLC approved; shifts have been reassigned, this is final
+//   denied            -> RLC said no; nothing changes, requester can re-post
+model SwapRequest {
+  id        String   @id @default(cuid())
+
+  shiftId   String
+  shift     Shift    @relation("ShiftGiven", fields: [shiftId], references: [id])
+
+  requesterId String
+  requester   User   @relation("Requester", fields: [requesterId], references: [id])
+
+  // set only if the requester aimed this at one specific person
+  targetId  String?
+
+  // set once someone agrees to take the shift (mutual agreement step)
+  acceptedById String?
+  acceptedBy   User?   @relation("AcceptedBy", fields: [acceptedById], references: [id])
+
+  // optional: if this is a true swap-for-swap rather than a one-way cover,
+  // this is the shift the acceptor gives back to the requester
+  offeredShiftId String?
+  offeredShift   Shift?  @relation("ShiftOffered", fields: [offeredShiftId], references: [id])
+
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
