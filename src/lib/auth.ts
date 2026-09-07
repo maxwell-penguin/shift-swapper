@@ -1,26 +1,36 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import AzureADProvider from "next-auth/providers/azure-ad";
+import EmailProvider from "next-auth/providers/email";
 import type { NextAuthOptions } from "next-auth";
+import { Resend } from "resend";
 import { db } from "./db";
 
-// Requires an Azure AD app registration (any of you can create one under
-// your own free Azure account — this does NOT need your residence's tenant
-// admin, since it's just standard delegated "sign in" access, not Shifts/Graph data).
+// Magic-link sign-in: no password, no OAuth app registration to manage.
 //
 // Env vars needed:
-//   AZURE_AD_CLIENT_ID
-//   AZURE_AD_CLIENT_SECRET
-//   AZURE_AD_TENANT_ID   (use "common" to allow any Microsoft account to sign in)
+//   RESEND_API_KEY
+//   EMAIL_FROM      (e.g. "Shift Swapper <swaps@yourdomain.com>")
 //   NEXTAUTH_SECRET
 //   NEXTAUTH_URL
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db),
   providers: [
-    AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.AZURE_AD_TENANT_ID ?? "common",
+    EmailProvider({
+      from: process.env.EMAIL_FROM,
+      async sendVerificationRequest({ identifier, url }) {
+        await resend.emails.send({
+          from: process.env.EMAIL_FROM!,
+          to: identifier,
+          subject: "Sign in to Shift Swapper",
+          html: `
+            <p>Click below to sign in to Shift Swapper:</p>
+            <p><a href="${url}">Sign in</a></p>
+            <p>If you didn't request this, you can ignore this email.</p>
+          `,
+        });
+      },
     }),
   ],
   session: { strategy: "database" },

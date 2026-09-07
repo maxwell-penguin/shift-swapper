@@ -11,15 +11,59 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  image     String?
-  createdAt DateTime @default(now())
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  // No signup form collects this yet — magic-link sign-in creates users with
+  // a blank name (Azure AD used to supply this from the OAuth profile).
+  name          String    @default("")
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  accounts Account[]
+  sessions Session[]
 
   shifts          Shift[]       @relation("ShiftOwner")
   requestedSwaps  SwapRequest[] @relation("Requester")
   acceptedSwaps   SwapRequest[] @relation("AcceptedBy")
+}
+
+// Required by the NextAuth Prisma adapter. Not used by the Email provider
+// itself, but keeps the schema ready if an OAuth provider is added later.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Stores the hashed magic-link token between "email sent" and "link clicked".
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Shift {
