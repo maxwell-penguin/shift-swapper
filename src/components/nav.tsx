@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/dashboard", label: "Schedule" },
   { href: "/swaps", label: "Swap requests" },
   { href: "/market", label: "Swap Market" },
+  { href: "/team", label: "Team" },
 ];
 
 export function Nav() {

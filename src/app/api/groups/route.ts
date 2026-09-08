@@ -4,6 +4,19 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateInviteCode } from "@/lib/invite-code";
 
+// GET /api/groups -> your own group's info (name, invite code)
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const groupId = (session.user as any).groupId;
+  if (!groupId) return NextResponse.json({ error: "join a group first" }, { status: 403 });
+
+  const group = await db.group.findUnique({ where: { id: groupId } });
+  if (!group) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  return NextResponse.json(group);
+}
+
 // POST /api/groups  { name, groupName }
 // Onboarding: creates a brand-new group and attaches the caller to it as
 // its first member, setting their display name in the same step.
