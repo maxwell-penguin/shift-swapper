@@ -63,20 +63,9 @@ module.exports = {
           "0%": { transform: "scale(1)", boxShadow: "0 1px 2px rgba(16,18,26,0.08)" },
           "100%": { transform: "scale(1.06)", boxShadow: "0 12px 24px rgba(16,18,26,0.22)" },
         },
-        "drop-settle": {
-          "0%": { transform: "scale(0.6)", opacity: "0" },
-          "60%": { transform: "scale(1.12)", opacity: "1" },
-          "100%": { transform: "scale(1)", opacity: "1" },
-        },
-        "status-change": {
-          "0%": { transform: "scale(0.94)", opacity: "0.4" },
-          "100%": { transform: "scale(1)", opacity: "1" },
-        },
       },
       animation: {
         "drag-lift": "drag-lift 150ms ease-out forwards",
-        "drop-settle": "drop-settle 320ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
-        "status-change": "status-change 220ms ease-out forwards",
       },
     },
   },
