@@ -8,6 +8,7 @@ function node(
   partial: Partial<PreferenceNode> & Pick<PreferenceNode, "id" | "userId" | "giveShiftId">,
 ): PreferenceNode {
   return {
+    groupId: "g1",
     giveShiftDate: new Date("2026-09-01"),
     giveShiftStartTime: "19:00",
     acceptableShiftIds: [],
@@ -127,6 +128,37 @@ function node(
     node({ id: "D", userId: "u4", giveShiftId: "sD", acceptableShiftIds: ["sC"] }),
   ];
   assert.strictEqual(findTradeCycles(nodes).length, 2);
+}
+
+// Two groups whose shiftIds would form a perfect cycle if group weren't
+// checked — must never match across the boundary, even though nothing else
+// distinguishes them (same acceptableShiftIds shape, same dates).
+{
+  const nodes = [
+    node({ id: "A", userId: "u1", groupId: "g1", giveShiftId: "sA", acceptableShiftIds: ["sB"] }),
+    node({ id: "B", userId: "u2", groupId: "g2", giveShiftId: "sB", acceptableShiftIds: ["sA"] }),
+  ];
+  assert.strictEqual(findTradeCycles(nodes).length, 0, "cross-group nodes must never form a cycle");
+}
+
+// A 3-way cycle should still form within one group even when unmatchable
+// nodes from a different group are mixed into the same batch.
+{
+  const nodes = [
+    node({ id: "A", userId: "u1", groupId: "g1", giveShiftId: "sA", acceptableShiftIds: ["sB"] }),
+    node({ id: "B", userId: "u2", groupId: "g1", giveShiftId: "sB", acceptableShiftIds: ["sC"] }),
+    node({ id: "C", userId: "u3", groupId: "g1", giveShiftId: "sC", acceptableShiftIds: ["sA"] }),
+    // Different group, and (deliberately) references group g1's shiftIds —
+    // should neither join g1's cycle nor form one of its own.
+    node({ id: "D", userId: "u4", groupId: "g2", giveShiftId: "sD", acceptableShiftIds: ["sA"] }),
+    node({ id: "E", userId: "u5", groupId: "g2", giveShiftId: "sE", acceptableShiftIds: ["sD"] }),
+  ];
+  const cycles = findTradeCycles(nodes);
+  assert.strictEqual(cycles.length, 1);
+  assert.deepStrictEqual(
+    new Set(cycles[0].map((m) => m.preferenceId)),
+    new Set(["A", "B", "C"]),
+  );
 }
 
 assert.strictEqual(timeOfDayBucket("19:00"), "overnight"); // this app's standard don shift

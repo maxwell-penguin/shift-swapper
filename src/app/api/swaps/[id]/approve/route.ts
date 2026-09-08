@@ -10,9 +10,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = (session.user as any).id;
+  const groupId = (session.user as any).groupId;
 
   const swap = await db.swapRequest.findUnique({ where: { id: params.id } });
-  if (!swap || swap.status !== "mutual") {
+  if (!swap || swap.status !== "mutual" || swap.groupId !== groupId) {
     return NextResponse.json({ error: "swap must be in mutual-agreement state first" }, { status: 409 });
   }
   if (userId !== swap.requesterId && userId !== swap.acceptedById) {

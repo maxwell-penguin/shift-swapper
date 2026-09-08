@@ -24,6 +24,7 @@ export async function POST() {
   const nodes: PreferenceNode[] = openPrefs.map((p) => ({
     id: p.id,
     userId: p.userId,
+    groupId: p.groupId,
     giveShiftId: p.giveShiftId,
     giveShiftDate: p.giveShift.date,
     giveShiftStartTime: p.giveShift.startTime,

@@ -8,9 +8,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = (session.user as any).id;
+  const groupId = (session.user as any).groupId;
 
   const pref = await db.swapPreference.findUnique({ where: { id: params.id } });
-  if (!pref || pref.userId !== userId) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!pref || pref.userId !== userId || pref.groupId !== groupId) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
   if (pref.status !== "open") {
     return NextResponse.json(
       { error: "this preference is already part of a proposed trade — deny that trade first" },

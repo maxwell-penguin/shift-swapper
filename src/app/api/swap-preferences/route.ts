@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   if (!giveShiftId) return NextResponse.json({ error: "giveShiftId required" }, { status: 400 });
 
   const shift = await db.shift.findUnique({ where: { id: giveShiftId } });
-  if (!shift || shift.ownerId !== userId) {
+  if (!shift || shift.ownerId !== userId || shift.groupId !== groupId) {
     return NextResponse.json({ error: "you can only post a preference for your own shift" }, { status: 403 });
   }
 
@@ -48,12 +48,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "you already have an active preference for this shift" }, { status: 409 });
   }
 
+  // Silently drop any acceptable-shiftId that isn't actually in this group —
+  // harmless either way since the matcher itself is group-scoped, but there's
+  // no reason to store a reference that can never resolve to anything.
+  const requestedShiftIds = Array.isArray(acceptableShiftIds) ? acceptableShiftIds : [];
+  const validShifts = requestedShiftIds.length
+    ? await db.shift.findMany({ where: { id: { in: requestedShiftIds }, groupId }, select: { id: true } })
+    : [];
+  const validShiftIds = new Set(validShifts.map((s) => s.id));
+  const filteredAcceptableShiftIds = requestedShiftIds.filter((id: string) => validShiftIds.has(id));
+
   const preference = await db.swapPreference.create({
     data: {
       userId,
       groupId,
       giveShiftId,
-      acceptableShiftIds: Array.isArray(acceptableShiftIds) ? acceptableShiftIds : [],
+      acceptableShiftIds: filteredAcceptableShiftIds,
       acceptableFromDate: acceptableFromDate ? new Date(`${acceptableFromDate}T00:00:00Z`) : null,
       acceptableToDate: acceptableToDate ? new Date(`${acceptableToDate}T00:00:00Z`) : null,
       acceptableTimeOfDay: acceptableTimeOfDay || null,

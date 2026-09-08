@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   const userId = (session.user as any).id;
 
   const shift = await db.shift.findUnique({ where: { id: shiftId } });
-  if (!shift || shift.ownerId !== userId) {
+  if (!shift || shift.ownerId !== userId || shift.groupId !== groupId) {
     return NextResponse.json({ error: "you can only post a swap for your own shift" }, { status: 403 });
   }
 

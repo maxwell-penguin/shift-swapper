@@ -8,9 +8,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = (session.user as any).id;
+  const groupId = (session.user as any).groupId;
 
   const shift = await db.shift.findUnique({ where: { id: params.id } });
-  if (!shift || shift.ownerId !== userId) {
+  if (!shift || shift.ownerId !== userId || shift.groupId !== groupId) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
@@ -32,9 +33,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = (session.user as any).id;
+  const groupId = (session.user as any).groupId;
 
   const shift = await db.shift.findUnique({ where: { id: params.id } });
-  if (!shift || shift.ownerId !== userId) {
+  if (!shift || shift.ownerId !== userId || shift.groupId !== groupId) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 

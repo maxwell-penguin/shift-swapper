@@ -13,6 +13,7 @@
 export type PreferenceNode = {
   id: string;
   userId: string;
+  groupId: string;
   giveShiftId: string;
   giveShiftDate: Date;
   giveShiftStartTime: string;
@@ -33,7 +34,12 @@ export function timeOfDayBucket(startTime: string): "morning" | "afternoon" | "e
 }
 
 function pickPreferredTarget(node: PreferenceNode, remaining: Map<string, PreferenceNode>): PreferenceNode | null {
-  const candidates = [...remaining.values()].filter((t) => t.id !== node.id && t.userId !== node.userId);
+  // groupId is checked here too, not just by whoever calls findTradeCycles —
+  // a cross-group match should be structurally impossible even if some future
+  // caller forgets to pre-filter its input by group.
+  const candidates = [...remaining.values()].filter(
+    (t) => t.id !== node.id && t.userId !== node.userId && t.groupId === node.groupId,
+  );
 
   if (node.acceptableShiftIds.length > 0) {
     for (const shiftId of node.acceptableShiftIds) {
