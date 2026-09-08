@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 const LINKS = [
   { href: "/dashboard", label: "Schedule" },
   { href: "/swaps", label: "Swap requests" },
+  { href: "/market", label: "Swap Market" },
 ];
 
 export function Nav() {

@@ -27,6 +27,7 @@ model User {
   requestedSwaps  SwapRequest[] @relation("Requester")
   acceptedSwaps   SwapRequest[] @relation("AcceptedBy")
   messages        Message[]
+  swapPreferences SwapPreference[]
 }
 
 // Required by the NextAuth Prisma adapter. Not used by the Email provider
@@ -91,9 +92,72 @@ model Shift {
   swapRequestsAsGiven  SwapRequest[] @relation("ShiftGiven")
   // requests where THIS shift is being offered back in a true two-way swap
   swapRequestsAsOffered SwapRequest[] @relation("ShiftOffered")
+  // multi-way market preferences where THIS shift is the one being given up
+  swapPreferences SwapPreference[] @relation("PreferenceGiveShift")
 
   @@index([date])
   @@index([ownerId])
+}
+
+// The multi-way "Swap Market": people post a shift they want off plus what
+// they'd take in return, and the Top Trading Cycles matcher (src/lib/matching.ts)
+// finds closed loops of 2+ people who can all get what they want at once, even
+// with no direct pair among them.
+//
+// Lifecycle: open -> matched (grouped into a SwapCycle by the matcher) ->
+// back to open if that cycle is denied.
+model SwapPreference {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  giveShiftId String
+  giveShift   Shift  @relation("PreferenceGiveShift", fields: [giveShiftId], references: [id])
+
+  // Option A: accept only these specific shifts, in preference order (tried first)
+  acceptableShiftIds String[] @default([])
+
+  // Option B: fallback filter, used only when none of acceptableShiftIds is
+  // currently available — any shift in this date range (+ time-of-day bucket,
+  // see timeOfDayBucket() in matching.ts). Null bounds mean "no constraint".
+  acceptableFromDate  DateTime?
+  acceptableToDate    DateTime?
+  acceptableTimeOfDay String?
+
+  status String @default("open") // open | matched | cancelled
+
+  cycleId String?
+  cycle   SwapCycle? @relation(fields: [cycleId], references: [id])
+
+  // Once matched: the preference whose giveShift this person will receive.
+  // The inverse (who THIS person gives to) is just whichever other preference
+  // in the same cycle has matchedWithId pointing back at this one.
+  matchedWithId String?         @unique
+  matchedWith   SwapPreference? @relation("PreferenceMatch", fields: [matchedWithId], references: [id])
+  matchedFrom   SwapPreference? @relation("PreferenceMatch")
+
+  agreedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([status])
+}
+
+// A proposed N-way trade: one SwapCycle groups the 2+ SwapPreferences the
+// matcher found forming a closed loop.
+//
+// Lifecycle mirrors SwapRequest, generalized from 2 people to N:
+//   proposed          -> matcher just found this cycle, nobody's confirmed yet
+//   all_agreed        -> every participant has confirmed their leg
+//   pending_approval  -> (same as all_agreed in practice — kept for UI copy)
+//   approved          -> RLC approved; every shift in the cycle reassigns at once
+//   denied            -> RLC said no (or someone backed out); everyone's
+//                        preference returns to "open" for the next matching run
+model SwapCycle {
+  id        String   @id @default(cuid())
+  status    String   @default("proposed")
+  createdAt DateTime @default(now())
+
+  preferences SwapPreference[]
 }
 
 // Lifecycle:
