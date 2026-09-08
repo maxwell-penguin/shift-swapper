@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isBeforeToday } from "@/lib/dates";
+import { notify } from "@/lib/notify";
+import { sendSwapTargetedEmail } from "@/lib/email";
 
 // GET /api/swaps  -> the swap board: everything not yet approved/denied, scoped to your group
 export async function GET() {
@@ -46,8 +48,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "can't post a swap for a shift that's already passed" }, { status: 409 });
   }
 
+  let target: { id: string; email: string; groupId: string | null } | null = null;
   if (targetId) {
-    const target = await db.user.findUnique({ where: { id: targetId } });
+    target = await db.user.findUnique({ where: { id: targetId } });
     if (!target || target.groupId !== groupId) {
       return NextResponse.json({ error: "that person isn't in your group" }, { status: 400 });
     }
@@ -70,6 +73,26 @@ export async function POST(req: NextRequest) {
   const swap = await db.swapRequest.create({
     data: { shiftId, groupId, requesterId: userId, targetId: targetId ?? null },
   });
+
+  if (target) {
+    const requesterName = (session.user as any).name || "Someone";
+    const dateStr = shift.date.toISOString().slice(0, 10);
+    await notify({
+      userId: target.id,
+      groupId,
+      type: "swap_targeted",
+      title: "Cover request",
+      body: `${requesterName} wants you to cover their ${dateStr} shift`,
+      href: "/swaps",
+    });
+    await sendSwapTargetedEmail({
+      targetEmail: target.email,
+      requesterName,
+      shiftDate: dateStr,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+    });
+  }
 
   return NextResponse.json(swap, { status: 201 });
 }

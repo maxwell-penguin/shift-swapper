@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { findTradeCycles, type PreferenceNode } from "@/lib/matching";
+import { notify } from "@/lib/notify";
+import { sendCycleMatchedEmail } from "@/lib/email";
 
 // POST /api/swap-cycles/find-matches
 // Runs Top Trading Cycles over every open preference and groups whatever
@@ -18,8 +20,9 @@ export async function POST() {
   // to a person in a completely different residence.
   const openPrefs = await db.swapPreference.findMany({
     where: { status: "open", groupId },
-    include: { giveShift: true },
+    include: { giveShift: true, user: true },
   });
+  const prefById = new Map(openPrefs.map((p) => [p.id, p]));
 
   const nodes: PreferenceNode[] = openPrefs.map((p) => ({
     id: p.id,
@@ -47,6 +50,17 @@ export async function POST() {
       }
     }
   });
+
+  for (const cycleMatches of cycles) {
+    const size = cycleMatches.length;
+    const title = "New trade match";
+    const body = `You've been matched in a ${size}-way trade — confirm your part.`;
+    const members = cycleMatches.map(({ preferenceId }) => prefById.get(preferenceId)!);
+    await Promise.all(
+      members.map((p) => notify({ userId: p.userId, groupId, type: "cycle_proposed", title, body, href: "/market" })),
+    );
+    await sendCycleMatchedEmail({ emails: members.map((p) => p.user.email), size });
+  }
 
   return NextResponse.json({ cyclesFound: cycles.length, sizes: cycles.map((c) => c.length) });
 }

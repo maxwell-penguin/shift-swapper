@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { NotificationBell } from "@/components/notification-bell";
 
 const LINKS = [
   { href: "/dashboard", label: "Schedule" },
@@ -32,9 +33,12 @@ export function Nav() {
             </Link>
           ))}
         </nav>
-        <button onClick={() => signOut()} className="ml-auto text-sm text-slate-400 hover:text-slate-200">
-          Sign out
-        </button>
+        <div className="ml-auto flex items-center gap-3">
+          <NotificationBell />
+          <button onClick={() => signOut()} className="text-sm text-slate-400 hover:text-slate-200">
+            Sign out
+          </button>
+        </div>
       </div>
     </header>
   );

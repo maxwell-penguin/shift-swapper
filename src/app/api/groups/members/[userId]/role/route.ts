@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { notify } from "@/lib/notify";
 
 // PATCH /api/groups/members/:userId/role  { role: "ADMIN" | "MEMBER" }
 // Caller must be an admin in the same group as the target. Role is read fresh
@@ -44,6 +45,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { userId: st
     data: { role },
     select: { id: true, name: true, role: true, createdAt: true },
   });
+
+  if (role === "ADMIN") {
+    await notify({
+      userId: target.id,
+      groupId,
+      type: "role_changed",
+      title: "You're now an admin",
+      body: "You've been promoted to admin for your group.",
+      href: "/dashboard",
+    });
+  }
 
   return NextResponse.json(updated);
 }

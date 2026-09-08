@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendSwapAgreedEmail } from "@/lib/email";
 import { isBeforeToday } from "@/lib/dates";
+import { notify } from "@/lib/notify";
 
 // PATCH /api/swaps/:id/accept  { offeredShiftId? }
 // The other person agrees to take the shift, optionally offering one of
@@ -71,12 +72,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data: { acceptedById: userId, status: "mutual", offeredShiftId: validatedOfferedShiftId },
   });
 
+  const dateStr = swap.shift.date.toISOString().slice(0, 10);
+
+  await notify({
+    userId: swap.requesterId,
+    groupId,
+    type: "swap_accepted",
+    title: "Swap accepted",
+    body: `${acceptedBy!.name || "Someone"} agreed to take your ${dateStr} shift — still needs admin approval.`,
+    href: "/swaps",
+  });
+
   await sendSwapAgreedEmail({
     requesterEmail: swap.requester.email,
     requesterName: swap.requester.name,
     acceptedByEmail: acceptedBy!.email,
     acceptedByName: acceptedBy!.name,
-    shiftDate: swap.shift.date.toISOString().slice(0, 10),
+    shiftDate: dateStr,
     startTime: swap.shift.startTime,
     endTime: swap.shift.endTime,
   });
