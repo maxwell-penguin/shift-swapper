@@ -2,21 +2,36 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { addMonths, eachDayOfInterval, endOfMonth, format, startOfMonth, subMonths } from "date-fns";
-import { AddShiftsModal } from "@/components/add-shifts-modal";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameMonth,
+  isToday as isTodayFn,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from "date-fns";
+import { DayCell, type Shift } from "@/components/day-cell";
+import { NEW_SHIFT_DRAG_ID, NewShiftPill, NewShiftPillPreview } from "@/components/new-shift-pill";
 import { Button, Card, ErrorState, LoadingState } from "@/components/ui";
+import { parseDateOnly } from "@/lib/dates";
 
-type Shift = {
-  id: string;
-  ownerId: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  owner: { id: string; name: string };
-};
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function monthDate(month: string) {
-  return new Date(`${month}-01T00:00:00Z`);
+  return parseDateOnly(`${month}-01`);
 }
 
 export function DashboardGrid() {
@@ -27,41 +42,94 @@ export function DashboardGrid() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dropError, setDropError] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [quickEditShift, setQuickEditShift] = useState<Shift | null>(null);
   const [swapShift, setSwapShift] = useState<Shift | null>(null);
   const [posting, setPosting] = useState(false);
-  const [showAddShifts, setShowAddShifts] = useState(false);
 
-  const loadShifts = useCallback(() => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+  );
+
+  const loadShifts = useCallback(async () => {
     setLoading(true);
     setError(null);
-    return fetch(`/api/shifts?month=${month}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Couldn't load shifts for this month.");
-        return res.json();
-      })
-      .then(setShifts)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+    try {
+      const res = await fetch(`/api/shifts?month=${month}`);
+      if (!res.ok) throw new Error("Couldn't load shifts for this month.");
+      const data: Shift[] = await res.json();
+      setShifts(data);
+      return data;
+    } catch (e: any) {
+      setError(e.message);
+      return [];
+    } finally {
+      setLoading(false);
+    }
   }, [month]);
 
   useEffect(() => {
     loadShifts();
   }, [loadShifts]);
 
-  const days = useMemo(() => {
-    const start = startOfMonth(monthDate(month));
-    return eachDayOfInterval({ start, end: endOfMonth(start) });
+  const gridDays = useMemo(() => {
+    const monthStart = startOfMonth(monthDate(month));
+    const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const gridEnd = endOfWeek(endOfMonth(monthStart), { weekStartsOn: 0 });
+    return eachDayOfInterval({ start: gridStart, end: gridEnd });
   }, [month]);
 
-  const owners = useMemo(() => {
-    const byId = new Map<string, string>();
-    shifts.forEach((s) => byId.set(s.ownerId, s.owner.name));
-    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  const shiftsByDate = useMemo(() => {
+    const map = new Map<string, Shift[]>();
+    shifts.forEach((s) => {
+      const key = s.date.slice(0, 10);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    });
+    return map;
   }, [shifts]);
 
-  function shiftFor(ownerId: string, day: Date) {
-    const key = format(day, "yyyy-MM-dd");
-    return shifts.find((s) => s.ownerId === ownerId && s.date.slice(0, 10) === key);
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+    const dateKey = event.over?.id;
+    if (event.active.id !== NEW_SHIFT_DRAG_ID || !dateKey || typeof dateKey !== "string") return;
+
+    setDropError(null);
+    const res = await fetch("/api/shifts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: dateKey, startTime: "19:00", endTime: "08:00" }),
+    });
+    if (!res.ok) {
+      setDropError("Couldn't add that shift.");
+      return;
+    }
+    const created = await res.json();
+    const refreshed = await loadShifts();
+    setQuickEditShift(refreshed.find((s) => s.id === created.id) ?? null);
+  }
+
+  async function saveQuickEdit(shiftId: string, patch: { startTime: string; endTime: string }) {
+    const res = await fetch(`/api/shifts/${shiftId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) return false;
+    await loadShifts();
+    return true;
+  }
+
+  async function removeShift(shift: Shift) {
+    const res = await fetch(`/api/shifts/${shift.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return body.error ?? "Couldn't remove that shift.";
+    }
+    await loadShifts();
+    return null;
   }
 
   async function requestSwap(shift: Shift) {
@@ -76,90 +144,86 @@ export function DashboardGrid() {
   }
 
   return (
-    <div>
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={() => setMonth(format(subMonths(monthDate(month), 1), "yyyy-MM"))}>
-            &larr;
-          </Button>
-          <h1 className="min-w-[10rem] text-center text-xl font-semibold text-slate-900">
-            {format(monthDate(month), "MMMM yyyy")}
-          </h1>
-          <Button variant="secondary" onClick={() => setMonth(format(addMonths(monthDate(month), 1), "yyyy-MM"))}>
-            &rarr;
-          </Button>
+    <DndContext
+      sensors={sensors}
+      onDragStart={(e) => setActiveId(String(e.active.id))}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
+      <div>
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="secondary" onClick={() => setMonth(format(subMonths(monthDate(month), 1), "yyyy-MM"))}>
+              &larr;
+            </Button>
+            <h1 className="min-w-[10rem] text-center text-xl font-semibold text-slate-900">
+              {format(monthDate(month), "MMMM yyyy")}
+            </h1>
+            <Button variant="secondary" onClick={() => setMonth(format(addMonths(monthDate(month), 1), "yyyy-MM"))}>
+              &rarr;
+            </Button>
+          </div>
+          <div className="flex flex-col items-center gap-1 sm:items-end">
+            <NewShiftPill />
+            <p className="text-xs text-slate-400">Drag onto a day to add your shift</p>
+          </div>
         </div>
-        <Button onClick={() => setShowAddShifts(true)} className="w-full sm:w-auto">
-          Add my shifts
-        </Button>
+
+        {dropError && (
+          <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            {dropError}
+          </div>
+        )}
+
+        {loading ? (
+          <LoadingState label="Loading shifts…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadShifts} />
+        ) : (
+          <Card className="overflow-hidden">
+            <div className="grid grid-cols-7">
+              {WEEKDAY_LABELS.map((label) => (
+                <div
+                  key={label}
+                  className="border-b border-r border-stone-200 bg-stone-50 py-2 text-center text-xs font-medium text-slate-500 last:border-r-0 sm:text-sm"
+                >
+                  {label}
+                </div>
+              ))}
+              {gridDays.map((day) => {
+                const key = format(day, "yyyy-MM-dd");
+                return (
+                  <DayCell
+                    key={key}
+                    date={day}
+                    inCurrentMonth={isSameMonth(day, monthDate(month))}
+                    isToday={isTodayFn(day)}
+                    shifts={shiftsByDate.get(key) ?? []}
+                    currentUserId={userId}
+                    quickEditShift={quickEditShift}
+                    onSaveQuickEdit={saveQuickEdit}
+                    onDismissQuickEdit={() => setQuickEditShift(null)}
+                    onRequestSwap={setSwapShift}
+                    onRemove={removeShift}
+                  />
+                );
+              })}
+            </div>
+          </Card>
+        )}
       </div>
 
-      {loading ? (
-        <LoadingState label="Loading shifts…" />
-      ) : error ? (
-        <ErrorState message={error} onRetry={loadShifts} />
-      ) : owners.length === 0 ? (
-        <p className="py-10 text-center text-sm text-slate-500">No shifts entered for this month yet.</p>
-      ) : (
-        <Card className="overflow-x-auto">
-          <p className="px-3 pt-3 text-xs text-slate-400 sm:hidden">Swipe to see the full month</p>
-          <table className="w-full border-collapse text-xs sm:text-sm">
-            <thead>
-              <tr>
-                <th className="sticky left-0 z-10 border-b border-r border-stone-200 bg-slate-900 px-2 py-2 text-left font-medium text-white">
-                  Don
-                </th>
-                {days.map((day) => (
-                  <th
-                    key={day.toISOString()}
-                    className="border-b border-stone-200 bg-slate-900 px-2 py-2 font-medium text-white"
-                  >
-                    {format(day, "d")}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {owners.map((owner) => (
-                <tr key={owner.id}>
-                  <td className="sticky left-0 z-10 border-b border-r border-stone-200 bg-white px-2 py-1.5 font-medium text-slate-800">
-                    {owner.name}
-                  </td>
-                  {days.map((day) => {
-                    const shift = shiftFor(owner.id, day);
-                    const isMine = !!shift && shift.ownerId === userId;
-                    return (
-                      <td
-                        key={day.toISOString()}
-                        onClick={() => isMine && setSwapShift(shift!)}
-                        className={`whitespace-nowrap border-b border-stone-200 px-2 py-1.5 text-center ${
-                          isMine
-                            ? "cursor-pointer border-l-2 border-l-amber-500 bg-amber-50 font-medium text-slate-900 hover:bg-amber-100"
-                            : shift
-                              ? "text-slate-600"
-                              : ""
-                        }`}
-                      >
-                        {shift ? shift.startTime : ""}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      )}
+      <DragOverlay>{activeId === NEW_SHIFT_DRAG_ID ? <NewShiftPillPreview /> : null}</DragOverlay>
 
       {swapShift && (
         <div
-          className="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/50 p-4"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4"
           onClick={() => setSwapShift(null)}
         >
           <div className="w-full max-w-sm rounded-md bg-white p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
             <p className="mb-4 text-sm text-slate-700">
               Request a swap for your {swapShift.startTime}–{swapShift.endTime} shift on{" "}
-              {format(new Date(swapShift.date), "MMM d")}?
+              {format(parseDateOnly(swapShift.date), "MMM d")}?
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setSwapShift(null)}>
@@ -172,8 +236,6 @@ export function DashboardGrid() {
           </div>
         </div>
       )}
-
-      {showAddShifts && <AddShiftsModal onClose={() => setShowAddShifts(false)} onAdded={loadShifts} />}
-    </div>
+    </DndContext>
   );
 }

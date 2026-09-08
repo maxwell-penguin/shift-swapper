@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { Button, Card, ErrorState, LoadingState } from "@/components/ui";
+import { parseDateOnly } from "@/lib/dates";
 
 type Person = { id: string; name: string };
 type Shift = { id: string; date: string; startTime: string; endTime: string };
@@ -100,7 +101,8 @@ export function SwapsList() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-medium text-slate-900">
-                    {format(new Date(swap.shift.date), "EEE, MMM d")}, {swap.shift.startTime}–{swap.shift.endTime}
+                    {format(parseDateOnly(swap.shift.date), "EEE, MMM d")}, {swap.shift.startTime}–
+                    {swap.shift.endTime}
                   </p>
                   <p className="text-sm text-slate-600">Requested by {swap.requester.name}</p>
                   {swap.acceptedBy && <p className="text-sm text-slate-600">Agreed to by {swap.acceptedBy.name}</p>}
