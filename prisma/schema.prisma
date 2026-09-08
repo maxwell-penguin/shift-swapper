@@ -10,6 +10,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// A group is one independent friend group / residence using the app — e.g.
+// two different dorms each run their own schedule, swap board, and chat,
+// and never see each other's data. inviteCode is what a new member types in
+// during onboarding to join an existing group instead of starting one.
+model Group {
+  id         String   @id @default(cuid())
+  name       String
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+
+  users           User[]
+  shifts          Shift[]
+  swapRequests    SwapRequest[]
+  swapPreferences SwapPreference[]
+  swapCycles      SwapCycle[]
+  messages        Message[]
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -19,6 +37,11 @@ model User {
   name          String    @default("")
   image         String?
   createdAt     DateTime  @default(now())
+
+  // Null until onboarding: a fresh sign-in has no group yet, which is exactly
+  // what /onboarding checks for (see src/app/(app)/layout.tsx).
+  groupId String?
+  group   Group?  @relation(fields: [groupId], references: [id])
 
   accounts Account[]
   sessions Session[]
@@ -68,21 +91,26 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// One shared channel for all dons — no DMs, no per-swap threads.
+// One shared channel per group — no DMs, no per-swap threads.
 model Message {
   id        String   @id @default(cuid())
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id])
   body      String
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+  @@index([groupId])
 }
 
 model Shift {
   id        String   @id @default(cuid())
   ownerId   String
   owner     User     @relation("ShiftOwner", fields: [ownerId], references: [id])
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id])
   date      DateTime // just the calendar date, e.g. 2026-10-14T00:00:00Z
   startTime String   // "19:00"
   endTime   String   // "08:00" (next day, overnight shift)
@@ -97,6 +125,7 @@ model Shift {
 
   @@index([date])
   @@index([ownerId])
+  @@index([groupId])
 }
 
 // The multi-way "Swap Market": people post a shift they want off plus what
@@ -107,9 +136,11 @@ model Shift {
 // Lifecycle: open -> matched (grouped into a SwapCycle by the matcher) ->
 // back to open if that cycle is denied.
 model SwapPreference {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id])
 
   giveShiftId String
   giveShift   Shift  @relation("PreferenceGiveShift", fields: [giveShiftId], references: [id])
@@ -140,6 +171,7 @@ model SwapPreference {
   createdAt DateTime  @default(now())
 
   @@index([status])
+  @@index([groupId])
 }
 
 // A proposed N-way trade: one SwapCycle groups the 2+ SwapPreferences the
@@ -155,9 +187,13 @@ model SwapPreference {
 model SwapCycle {
   id        String   @id @default(cuid())
   status    String   @default("proposed")
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id])
   createdAt DateTime @default(now())
 
   preferences SwapPreference[]
+
+  @@index([groupId])
 }
 
 // Lifecycle:
@@ -168,6 +204,9 @@ model SwapCycle {
 //   denied            -> RLC said no; nothing changes, requester can re-post
 model SwapRequest {
   id        String   @id @default(cuid())
+
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id])
 
   shiftId   String
   shift     Shift    @relation("ShiftGiven", fields: [shiftId], references: [id])
@@ -192,4 +231,5 @@ model SwapRequest {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  @@index([groupId])
 }

@@ -11,12 +11,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = (session.user as any).id;
+  const groupId = (session.user as any).groupId;
 
   const cycle = await db.swapCycle.findUnique({
     where: { id: params.id },
     include: { preferences: true },
   });
-  if (!cycle || cycle.status !== "proposed") {
+  if (!cycle || cycle.status !== "proposed" || cycle.groupId !== groupId) {
     return NextResponse.json({ error: "this cycle isn't open for confirmation" }, { status: 409 });
   }
 

@@ -36,7 +36,13 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "database" },
   callbacks: {
     async session({ session, user }) {
-      if (session.user) (session.user as any).id = user.id;
+      if (session.user) {
+        (session.user as any).id = user.id;
+        // Every page/API route reads tenant scope off these two — set here
+        // once so nothing needs an extra DB round trip just to find out.
+        (session.user as any).groupId = (user as any).groupId ?? null;
+        (session.user as any).name = (user as any).name ?? "";
+      }
       return session;
     },
   },

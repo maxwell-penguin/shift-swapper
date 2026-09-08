@@ -10,9 +10,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = (session.user as any).id;
+  const groupId = (session.user as any).groupId;
 
   const cycle = await db.swapCycle.findUnique({ where: { id: params.id }, include: { preferences: true } });
-  if (!cycle) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!cycle || cycle.groupId !== groupId) return NextResponse.json({ error: "not found" }, { status: 404 });
   if (cycle.status === "approved") return NextResponse.json({ error: "already approved" }, { status: 409 });
   if (!cycle.preferences.some((p) => p.userId === userId)) {
     return NextResponse.json({ error: "only a participant can do this" }, { status: 403 });

@@ -11,12 +11,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = (session.user as any).id;
+  const groupId = (session.user as any).groupId;
 
   const swap = await db.swapRequest.findUnique({
     where: { id: params.id },
     include: { shift: true, requester: true },
   });
   if (!swap || swap.status !== "open") {
+    return NextResponse.json({ error: "swap not open" }, { status: 409 });
+  }
+  // An untargeted request has no requester/acceptedBy check to fall back on,
+  // so without this, anyone signed in — from any group — could accept it.
+  if (swap.groupId !== groupId) {
     return NextResponse.json({ error: "swap not open" }, { status: 409 });
   }
   if (swap.targetId && swap.targetId !== userId) {

@@ -3,10 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// GET /api/shifts?month=2026-10  -> everyone's shifts for that month
+// GET /api/shifts?month=2026-10  -> everyone's shifts for that month, scoped to your group
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const groupId = (session.user as any).groupId;
+  if (!groupId) return NextResponse.json({ error: "join a group first" }, { status: 403 });
 
   const month = req.nextUrl.searchParams.get("month"); // "YYYY-MM"
   if (!month) return NextResponse.json({ error: "month query param required" }, { status: 400 });
@@ -16,7 +18,7 @@ export async function GET(req: NextRequest) {
   end.setUTCMonth(end.getUTCMonth() + 1);
 
   const shifts = await db.shift.findMany({
-    where: { date: { gte: start, lt: end } },
+    where: { groupId, date: { gte: start, lt: end } },
     include: { owner: { select: { id: true, name: true } } },
     orderBy: { date: "asc" },
   });
@@ -29,6 +31,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const groupId = (session.user as any).groupId;
+  if (!groupId) return NextResponse.json({ error: "join a group first" }, { status: 403 });
 
   const { date, startTime, endTime } = await req.json();
   if (!date || !startTime || !endTime) {
@@ -38,6 +42,7 @@ export async function POST(req: NextRequest) {
   const shift = await db.shift.create({
     data: {
       ownerId: (session.user as any).id,
+      groupId,
       date: new Date(`${date}T00:00:00Z`),
       startTime,
       endTime,

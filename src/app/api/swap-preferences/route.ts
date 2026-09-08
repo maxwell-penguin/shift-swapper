@@ -3,13 +3,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// GET /api/swap-preferences -> every open or matched preference (the Swap Market)
+// GET /api/swap-preferences -> every open or matched preference in your group (the Swap Market)
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const groupId = (session.user as any).groupId;
+  if (!groupId) return NextResponse.json({ error: "join a group first" }, { status: 403 });
 
   const preferences = await db.swapPreference.findMany({
-    where: { status: { in: ["open", "matched"] } },
+    where: { groupId, status: { in: ["open", "matched"] } },
     include: {
       user: { select: { id: true, name: true } },
       giveShift: true,
@@ -26,6 +28,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const groupId = (session.user as any).groupId;
+  if (!groupId) return NextResponse.json({ error: "join a group first" }, { status: 403 });
   const userId = (session.user as any).id;
 
   const { giveShiftId, acceptableShiftIds, acceptableFromDate, acceptableToDate, acceptableTimeOfDay } =
@@ -47,6 +51,7 @@ export async function POST(req: NextRequest) {
   const preference = await db.swapPreference.create({
     data: {
       userId,
+      groupId,
       giveShiftId,
       acceptableShiftIds: Array.isArray(acceptableShiftIds) ? acceptableShiftIds : [],
       acceptableFromDate: acceptableFromDate ? new Date(`${acceptableFromDate}T00:00:00Z`) : null,

@@ -11,12 +11,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = (session.user as any).id;
+  const groupId = (session.user as any).groupId;
 
   const cycle = await db.swapCycle.findUnique({
     where: { id: params.id },
     include: { preferences: { include: { matchedFrom: true } } },
   });
-  if (!cycle || cycle.status !== "all_agreed") {
+  if (!cycle || cycle.status !== "all_agreed" || cycle.groupId !== groupId) {
     return NextResponse.json({ error: "every participant must agree before this can be approved" }, { status: 409 });
   }
   if (!cycle.preferences.some((p) => p.userId === userId)) {

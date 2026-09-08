@@ -5,7 +5,7 @@ import { MagicLinkForm } from "@/components/magic-link-form";
 
 export default async function Home() {
   const session = await getServerSession(authOptions);
-  if (session) redirect("/dashboard");
+  if (session) redirect((session.user as any).groupId ? "/dashboard" : "/onboarding");
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center">

@@ -8,9 +8,11 @@ import { db } from "@/lib/db";
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const groupId = (session.user as any).groupId;
+  if (!groupId) return NextResponse.json({ error: "join a group first" }, { status: 403 });
 
   const cycles = await db.swapCycle.findMany({
-    where: { status: { in: ["proposed", "all_agreed", "pending_approval"] } },
+    where: { groupId, status: { in: ["proposed", "all_agreed", "pending_approval"] } },
     include: {
       preferences: {
         include: {

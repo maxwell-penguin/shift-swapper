@@ -6,6 +6,7 @@ import { Nav } from "@/components/nav";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/");
+  if (!(session.user as any).groupId) redirect("/onboarding");
 
   return (
     <div className="min-h-screen">

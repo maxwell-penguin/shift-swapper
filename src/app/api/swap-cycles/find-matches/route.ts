@@ -11,9 +11,13 @@ import { findTradeCycles, type PreferenceNode } from "@/lib/matching";
 export async function POST() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const groupId = (session.user as any).groupId;
+  if (!groupId) return NextResponse.json({ error: "join a group first" }, { status: 403 });
 
+  // Scoped to one group — otherwise the matcher could chain someone's shift
+  // to a person in a completely different residence.
   const openPrefs = await db.swapPreference.findMany({
-    where: { status: "open" },
+    where: { status: "open", groupId },
     include: { giveShift: true },
   });
 
@@ -33,7 +37,7 @@ export async function POST() {
 
   await db.$transaction(async (tx) => {
     for (const cycleMatches of cycles) {
-      const cycle = await tx.swapCycle.create({ data: { status: "proposed" } });
+      const cycle = await tx.swapCycle.create({ data: { status: "proposed", groupId } });
       for (const { preferenceId, matchedWithId } of cycleMatches) {
         await tx.swapPreference.update({
           where: { id: preferenceId },
