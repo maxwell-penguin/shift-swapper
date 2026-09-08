@@ -31,6 +31,11 @@ type DayCellProps = {
   onDismissQuickEdit: () => void;
   onRequestSwap: (shift: Shift) => void;
   onRemove: (shift: Shift) => Promise<string | null>;
+  markingMode: boolean;
+  redShiftIds: Set<string>;
+  greenShiftIds: Set<string>;
+  onMarkRed: (shift: Shift) => void;
+  onToggleGreen: (shift: Shift) => void;
 };
 
 export function DayCell({
@@ -48,6 +53,11 @@ export function DayCell({
   onDismissQuickEdit,
   onRequestSwap,
   onRemove,
+  markingMode,
+  redShiftIds,
+  greenShiftIds,
+  onMarkRed,
+  onToggleGreen,
 }: DayCellProps) {
   const dateKey = format(date, "yyyy-MM-dd");
   const { setNodeRef, isOver } = useDroppable({ id: dateKey });
@@ -65,7 +75,7 @@ export function DayCell({
   return (
     <div
       ref={setNodeRef}
-      onClick={onSelect}
+      onClick={markingMode ? undefined : onSelect}
       className={`relative flex min-h-[5.5rem] flex-col gap-1.5 border-b border-r border-ink-200 p-1.5 transition sm:min-h-[7rem] sm:p-2 ${
         inCurrentMonth ? "bg-white" : "bg-ink-50"
       } ${
@@ -96,6 +106,11 @@ export function DayCell({
               isMine={shift.ownerId === currentUserId}
               onRequestSwap={onRequestSwap}
               onRemove={onRemove}
+              markingMode={markingMode}
+              isRed={redShiftIds.has(shift.id)}
+              isGreen={greenShiftIds.has(shift.id)}
+              onMarkRed={onMarkRed}
+              onToggleGreen={onToggleGreen}
             />
           );
           return quickEditShift?.id === shift.id ? (
@@ -104,10 +119,17 @@ export function DayCell({
             <div key={shift.id}>{chip}</div>
           );
         })}
-        {hidden.length > 0 && <OverflowPill shifts={hidden} />}
+        {hidden.length > 0 && (
+          <OverflowPill
+            shifts={hidden}
+            markingMode={markingMode}
+            greenShiftIds={greenShiftIds}
+            onToggleGreen={onToggleGreen}
+          />
+        )}
       </div>
 
-      {selected && !editingHere && (
+      {!markingMode && selected && !editingHere && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -120,7 +142,7 @@ export function DayCell({
         </button>
       )}
 
-      {editingHere && quickEditShift && (
+      {!markingMode && editingHere && quickEditShift && (
         <QuickEditPopover
           shift={quickEditShift}
           onSave={onSaveQuickEdit}
@@ -131,16 +153,36 @@ export function DayCell({
   );
 }
 
+// The ring color communicates the same red/give-away or green/acceptable
+// status whether it comes from an already-posted SwapPreference or the
+// in-progress marking draft — both mean the same thing to someone reading
+// the calendar, so they share one visual language.
+function markRingClass(isRed: boolean, isGreen: boolean) {
+  if (isRed) return "ring-2 ring-offset-1 ring-denied-400";
+  if (isGreen) return "ring-2 ring-offset-1 ring-approved-400";
+  return "";
+}
+
 function ShiftChip({
   shift,
   isMine,
   onRequestSwap,
   onRemove,
+  markingMode,
+  isRed,
+  isGreen,
+  onMarkRed,
+  onToggleGreen,
 }: {
   shift: Shift;
   isMine: boolean;
   onRequestSwap: (shift: Shift) => void;
   onRemove: (shift: Shift) => Promise<string | null>;
+  markingMode: boolean;
+  isRed: boolean;
+  isGreen: boolean;
+  onMarkRed: (shift: Shift) => void;
+  onToggleGreen: (shift: Shift) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -165,22 +207,34 @@ function ShiftChip({
     else setMenuOpen(false);
   }
 
+  function handleClick() {
+    if (markingMode) {
+      if (isMine) onMarkRed(shift);
+      else onToggleGreen(shift);
+      return;
+    }
+    if (isMine) setMenuOpen((v) => !v);
+  }
+
   const firstName = (shift.owner.name || "Unnamed").split(" ")[0];
+  const clickable = markingMode ? true : isMine;
 
   return (
     <div ref={menuRef} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
-        onClick={() => isMine && setMenuOpen((v) => !v)}
+        onClick={handleClick}
         title={`${shift.owner.name || "Unnamed"}, ${shift.startTime}–${shift.endTime}`}
         className={`flex w-full min-w-0 items-center gap-1 rounded transition-colors ${
-          isMine ? "cursor-pointer hover:bg-ink-100" : "cursor-default"
+          clickable ? "cursor-pointer hover:bg-ink-100" : "cursor-default"
         }`}
       >
-        <Avatar userId={shift.ownerId} name={shift.owner.name} size="xs" />
+        <span className={`flex-none rounded-full transition-colors ${markRingClass(isRed, isGreen)}`}>
+          <Avatar userId={shift.ownerId} name={shift.owner.name} size="xs" />
+        </span>
         <span className="truncate text-micro text-ink-700 sm:text-caption">{firstName}</span>
       </button>
 
-      {menuOpen && (
+      {!markingMode && menuOpen && (
         <div className="absolute left-0 top-full z-30 mt-1 w-44 rounded-card border border-ink-200 bg-white p-1 text-label shadow-lg">
           <p className="px-2 py-1 text-caption text-ink-400">
             {shift.startTime}–{shift.endTime}
@@ -208,7 +262,17 @@ function ShiftChip({
   );
 }
 
-function OverflowPill({ shifts }: { shifts: Shift[] }) {
+function OverflowPill({
+  shifts,
+  markingMode,
+  greenShiftIds,
+  onToggleGreen,
+}: {
+  shifts: Shift[];
+  markingMode: boolean;
+  greenShiftIds: Set<string>;
+  onToggleGreen: (shift: Shift) => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -233,15 +297,30 @@ function OverflowPill({ shifts }: { shifts: Shift[] }) {
       {open && (
         <div className="absolute left-0 top-full z-30 mt-1 w-44 rounded-card border border-ink-200 bg-white p-1.5 shadow-lg">
           <ul className="space-y-1">
-            {shifts.map((shift) => (
-              <li key={shift.id} className="flex items-center gap-1.5 px-1 py-0.5 text-caption text-ink-700">
-                <Avatar userId={shift.ownerId} name={shift.owner.name} size="xs" />
-                <span className="truncate">{shift.owner.name || "Unnamed"}</span>
-                <span className="ml-auto flex-none text-micro text-ink-400">
-                  {shift.startTime}–{shift.endTime}
-                </span>
-              </li>
-            ))}
+            {shifts.map((shift) => {
+              // Overflow items are, by construction, never the current
+              // user's own shift (day-cell always keeps that one visible) —
+              // so in marking mode these can only ever be toggled green.
+              const isGreen = greenShiftIds.has(shift.id);
+              return (
+                <li key={shift.id}>
+                  <button
+                    onClick={() => markingMode && onToggleGreen(shift)}
+                    className={`flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-caption text-ink-700 transition-colors ${
+                      markingMode ? "cursor-pointer hover:bg-ink-100" : "cursor-default"
+                    }`}
+                  >
+                    <span className={`flex-none rounded-full transition-colors ${markRingClass(false, isGreen)}`}>
+                      <Avatar userId={shift.ownerId} name={shift.owner.name} size="xs" />
+                    </span>
+                    <span className="truncate">{shift.owner.name || "Unnamed"}</span>
+                    <span className="ml-auto flex-none text-micro text-ink-400">
+                      {shift.startTime}–{shift.endTime}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
