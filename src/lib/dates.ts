@@ -7,3 +7,13 @@ export function parseDateOnly(dateStr: string): Date {
   const [year, month, day] = dateStr.slice(0, 10).split("-").map(Number);
   return new Date(year, month - 1, day);
 }
+
+// Shift.date is stored as UTC midnight (see Shift.date in schema.prisma), so
+// "is this in the past" has to compare against UTC midnight of today too —
+// comparing against local midnight would be off by up to a day depending on
+// server/viewer timezone.
+export function isBeforeToday(date: Date): boolean {
+  const todayUTC = new Date();
+  todayUTC.setUTCHours(0, 0, 0, 0);
+  return date < todayUTC;
+}

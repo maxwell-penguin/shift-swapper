@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isBeforeToday } from "@/lib/dates";
 
 // GET /api/shifts?month=2026-10  -> everyone's shifts for that month, scoped to your group
 export async function GET(req: NextRequest) {
@@ -39,15 +40,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "date, startTime, endTime required" }, { status: 400 });
   }
 
-  const shift = await db.shift.create({
-    data: {
-      ownerId: (session.user as any).id,
-      groupId,
-      date: new Date(`${date}T00:00:00Z`),
-      startTime,
-      endTime,
-    },
-  });
+  const parsedDate = new Date(`${date}T00:00:00Z`);
+  if (isBeforeToday(parsedDate)) {
+    return NextResponse.json({ error: "can't add a shift in the past" }, { status: 400 });
+  }
 
-  return NextResponse.json(shift, { status: 201 });
+  try {
+    const shift = await db.shift.create({
+      data: {
+        ownerId: (session.user as any).id,
+        groupId,
+        date: parsedDate,
+        startTime,
+        endTime,
+      },
+    });
+    return NextResponse.json(shift, { status: 201 });
+  } catch (e: any) {
+    if (e.code === "P2002") {
+      return NextResponse.json({ error: "You already have a shift on that date." }, { status: 409 });
+    }
+    throw e;
+  }
 }

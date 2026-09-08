@@ -95,6 +95,7 @@ function CycleDiagram({ preferences }: { preferences: CyclePreference[] }) {
 export function CycleCard({
   cycle,
   currentUserId,
+  isAdmin = false,
   onConfirm,
   onApprove,
   onDeny,
@@ -102,6 +103,7 @@ export function CycleCard({
 }: {
   cycle: SwapCycleT;
   currentUserId?: string;
+  isAdmin?: boolean;
   onConfirm: (cycleId: string) => void;
   onApprove: (cycleId: string) => void;
   onDeny: (cycleId: string) => void;
@@ -112,6 +114,7 @@ export function CycleCard({
   const iHaveConfirmed = !!myPref?.agreedAt;
   const isPending = cycle.status === "proposed";
   const isAllAgreed = cycle.status === "all_agreed" || cycle.status === "pending_approval";
+  const showRlcButtons = isAllAgreed && isAdmin;
 
   return (
     <Card className={`p-4 ${isAllAgreed ? "border-amber-300 bg-amber-50" : ""}`}>
@@ -148,15 +151,17 @@ export function CycleCard({
         ))}
       </ul>
 
-      {isParticipant && (
+      {(isParticipant || showRlcButtons) && (
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          {isPending && !iHaveConfirmed && (
+          {isParticipant && isPending && !iHaveConfirmed && (
             <Button disabled={busy} onClick={() => onConfirm(cycle.id)}>
               Confirm your part
             </Button>
           )}
-          {isPending && iHaveConfirmed && <p className="text-sm text-slate-500">Waiting on the others to confirm…</p>}
-          {isAllAgreed && (
+          {isParticipant && isPending && iHaveConfirmed && (
+            <p className="text-sm text-slate-500">Waiting on the others to confirm…</p>
+          )}
+          {showRlcButtons && (
             <>
               <Button variant="success" disabled={busy} onClick={() => onApprove(cycle.id)}>
                 RLC approved

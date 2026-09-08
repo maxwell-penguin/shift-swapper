@@ -42,6 +42,7 @@ export const authOptions: NextAuthOptions = {
         // once so nothing needs an extra DB round trip just to find out.
         (session.user as any).groupId = (user as any).groupId ?? null;
         (session.user as any).name = (user as any).name ?? "";
+        (session.user as any).role = (user as any).role ?? "MEMBER";
       }
       return session;
     },

@@ -35,6 +35,7 @@ function monthKey(offset: number) {
 export function SwapMarket() {
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id;
+  const isAdmin = (session?.user as any)?.role === "ADMIN";
 
   const [myShifts, setMyShifts] = useState<Shift[]>([]);
   const [preferences, setPreferences] = useState<Preference[]>([]);
@@ -297,6 +298,7 @@ export function SwapMarket() {
                 <CycleCard
                   cycle={cycle}
                   currentUserId={userId}
+                  isAdmin={isAdmin}
                   busy={busyCycleId === cycle.id}
                   onConfirm={(id) => act(id, "confirm")}
                   onApprove={(id) => act(id, "approve")}

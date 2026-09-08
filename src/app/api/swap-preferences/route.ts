@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isBeforeToday } from "@/lib/dates";
 
 // GET /api/swap-preferences -> every open or matched preference in your group (the Swap Market)
 export async function GET() {
@@ -40,12 +41,22 @@ export async function POST(req: NextRequest) {
   if (!shift || shift.ownerId !== userId || shift.groupId !== groupId) {
     return NextResponse.json({ error: "you can only post a preference for your own shift" }, { status: 403 });
   }
+  if (isBeforeToday(shift.date)) {
+    return NextResponse.json({ error: "can't post a preference for a shift that's already passed" }, { status: 409 });
+  }
 
   const existing = await db.swapPreference.findFirst({
     where: { giveShiftId, status: { in: ["open", "matched"] } },
   });
   if (existing) {
     return NextResponse.json({ error: "you already have an active preference for this shift" }, { status: 409 });
+  }
+
+  const existingSwapRequest = await db.swapRequest.findFirst({
+    where: { shiftId: giveShiftId, status: { in: ["open", "mutual"] } },
+  });
+  if (existingSwapRequest) {
+    return NextResponse.json({ error: "this shift already has an active swap request" }, { status: 409 });
   }
 
   // Silently drop any acceptable-shiftId that isn't actually in this group —

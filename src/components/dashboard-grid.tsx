@@ -47,6 +47,8 @@ export function DashboardGrid() {
   const [quickEditShift, setQuickEditShift] = useState<Shift | null>(null);
   const [swapShift, setSwapShift] = useState<Shift | null>(null);
   const [posting, setPosting] = useState(false);
+  const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
+  const [targetId, setTargetId] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -73,6 +75,13 @@ export function DashboardGrid() {
   useEffect(() => {
     loadShifts();
   }, [loadShifts]);
+
+  useEffect(() => {
+    fetch("/api/groups/members")
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setMembers)
+      .catch(() => {});
+  }, []);
 
   const gridDays = useMemo(() => {
     const monthStart = startOfMonth(monthDate(month));
@@ -137,10 +146,13 @@ export function DashboardGrid() {
     const res = await fetch("/api/swaps", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shiftId: shift.id }),
+      body: JSON.stringify({ shiftId: shift.id, targetId: targetId || undefined }),
     });
     setPosting(false);
-    if (res.ok) setSwapShift(null);
+    if (res.ok) {
+      setSwapShift(null);
+      setTargetId("");
+    }
   }
 
   return (
@@ -203,7 +215,10 @@ export function DashboardGrid() {
                     quickEditShift={quickEditShift}
                     onSaveQuickEdit={saveQuickEdit}
                     onDismissQuickEdit={() => setQuickEditShift(null)}
-                    onRequestSwap={setSwapShift}
+                    onRequestSwap={(shift) => {
+                      setTargetId("");
+                      setSwapShift(shift);
+                    }}
                     onRemove={removeShift}
                   />
                 );
@@ -225,6 +240,29 @@ export function DashboardGrid() {
               Request a swap for your {swapShift.startTime}–{swapShift.endTime} shift on{" "}
               {format(parseDateOnly(swapShift.date), "MMM d")}?
             </p>
+
+            {members.length > 1 && (
+              <div className="mb-4">
+                <label className="mb-1 block text-xs font-medium text-slate-500">
+                  Aim this at someone specific (optional)
+                </label>
+                <select
+                  value={targetId}
+                  onChange={(e) => setTargetId(e.target.value)}
+                  className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+                >
+                  <option value="">Anyone in the group</option>
+                  {members
+                    .filter((m) => m.id !== userId)
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name || "Unnamed"}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setSwapShift(null)}>
                 Cancel

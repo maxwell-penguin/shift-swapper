@@ -4,14 +4,14 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 // PATCH /api/swap-cycles/:id/approve
-// Any participant marks this once the RLC has actually said yes. This is the
+// A group admin marks this once the RLC has actually said yes. This is the
 // ONLY step that changes shift ownership — every leg of the cycle reassigns
 // in one transaction, or none do.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const userId = (session.user as any).id;
   const groupId = (session.user as any).groupId;
+  const role = (session.user as any).role;
 
   const cycle = await db.swapCycle.findUnique({
     where: { id: params.id },
@@ -20,8 +20,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!cycle || cycle.status !== "all_agreed" || cycle.groupId !== groupId) {
     return NextResponse.json({ error: "every participant must agree before this can be approved" }, { status: 409 });
   }
-  if (!cycle.preferences.some((p) => p.userId === userId)) {
-    return NextResponse.json({ error: "only a participant can confirm approval" }, { status: 403 });
+  if (role !== "ADMIN") {
+    return NextResponse.json({ error: "only a group admin can approve" }, { status: 403 });
   }
 
   const result = await db.$transaction(async (tx) => {
