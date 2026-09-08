@@ -41,6 +41,7 @@ export function SwapMarket() {
   const [preferences, setPreferences] = useState<Preference[]>([]);
   const [cycles, setCycles] = useState<SwapCycleT[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [finding, setFinding] = useState(false);
   const [findResult, setFindResult] = useState<string | null>(null);
@@ -83,6 +84,7 @@ export function SwapMarket() {
       setError(e.message);
     } finally {
       setLoading(false);
+      setLoadedOnce(true);
     }
   }, [userId]);
 
@@ -166,7 +168,7 @@ export function SwapMarket() {
     await loadAll();
   }
 
-  if (loading) return <LoadingState label="Loading the swap market…" />;
+  if (loading && !loadedOnce) return <LoadingState label="Loading the swap market…" />;
   if (error) return <ErrorState message={error} onRetry={loadAll} />;
 
   return (
@@ -264,7 +266,7 @@ export function SwapMarket() {
                   {p.status === "open" && (
                     <button
                       onClick={() => cancelPreference(p.id)}
-                      className="text-caption text-ink-400 hover:text-denied-400"
+                      className="text-caption text-ink-400 transition-colors hover:text-denied-400"
                     >
                       Withdraw
                     </button>

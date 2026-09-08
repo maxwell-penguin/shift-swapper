@@ -24,7 +24,7 @@ export function Nav() {
             <Link
               key={link.href}
               href={link.href}
-              className={`border-b-2 pb-0.5 ${
+              className={`border-b-2 pb-0.5 transition-colors ${
                 pathname === link.href
                   ? "border-accent-500 text-white"
                   : "border-transparent text-ink-400 hover:text-ink-200"
@@ -36,7 +36,7 @@ export function Nav() {
         </nav>
         <div className="ml-auto flex items-center gap-3">
           <NotificationBell />
-          <button onClick={() => signOut()} className="text-label text-ink-400 hover:text-ink-200">
+          <button onClick={() => signOut()} className="text-label text-ink-400 transition-colors hover:text-ink-200">
             Sign out
           </button>
         </div>

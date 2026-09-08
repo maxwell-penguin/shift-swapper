@@ -41,6 +41,7 @@ export function DashboardGrid() {
   const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -72,6 +73,7 @@ export function DashboardGrid() {
       return [];
     } finally {
       setLoading(false);
+      setLoadedOnce(true);
     }
   }, [month]);
 
@@ -220,7 +222,7 @@ export function DashboardGrid() {
           </div>
         )}
 
-        {loading ? (
+        {loading && !loadedOnce ? (
           <LoadingState label="Loading shifts…" />
         ) : error ? (
           <ErrorState message={error} onRetry={loadShifts} />

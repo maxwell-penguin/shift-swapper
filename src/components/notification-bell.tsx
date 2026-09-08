@@ -72,7 +72,7 @@ export function NotificationBell() {
     <div ref={menuRef} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-8 w-8 items-center justify-center rounded-full text-ink-400 hover:text-ink-200"
+        className="relative flex h-8 w-8 items-center justify-center rounded-full text-ink-400 transition-colors hover:text-ink-200"
         aria-label="Notifications"
       >
         <BellIcon />
@@ -88,7 +88,7 @@ export function NotificationBell() {
           <div className="flex items-center justify-between border-b border-ink-200 px-3 py-2">
             <p className="text-label font-semibold">Notifications</p>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-caption font-medium text-accent-600 hover:text-accent-700">
+              <button onClick={markAllRead} className="text-caption font-medium text-accent-600 transition-colors hover:text-accent-700">
                 Mark all read
               </button>
             )}
@@ -101,7 +101,7 @@ export function NotificationBell() {
                 <button
                   key={n.id}
                   onClick={() => handleClickItem(n)}
-                  className={`flex w-full items-start gap-2 border-b border-ink-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-ink-50 ${
+                  className={`flex w-full items-start gap-2 border-b border-ink-100 px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-ink-50 ${
                     n.read ? "" : "bg-accent-100/60"
                   }`}
                 >

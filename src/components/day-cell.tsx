@@ -66,7 +66,7 @@ export function DayCell({
     <div
       ref={setNodeRef}
       onClick={onSelect}
-      className={`relative flex min-h-[5.5rem] flex-col gap-1.5 border-b border-r border-ink-200 p-1.5 transition-colors sm:min-h-[7rem] sm:p-2 ${
+      className={`relative flex min-h-[5.5rem] flex-col gap-1.5 border-b border-r border-ink-200 p-1.5 transition sm:min-h-[7rem] sm:p-2 ${
         inCurrentMonth ? "bg-white" : "bg-ink-50"
       } ${
         isOver
@@ -114,7 +114,7 @@ export function DayCell({
             onAddHere();
           }}
           disabled={addingHere}
-          className="absolute left-0 top-full z-20 mt-1 whitespace-nowrap rounded-card border border-dashed border-accent-500 bg-white px-2 py-1 text-caption font-medium text-accent-700 shadow-sm hover:bg-accent-100 disabled:opacity-50"
+          className="absolute left-0 top-full z-20 mt-1 whitespace-nowrap rounded-card border border-dashed border-accent-500 bg-white px-2 py-1 text-caption font-medium text-accent-700 shadow-sm transition-colors hover:bg-accent-100 disabled:opacity-50"
         >
           {addingHere ? "Adding…" : "+ Add shift here"}
         </button>
@@ -190,14 +190,14 @@ function ShiftChip({
               onRequestSwap(shift);
               setMenuOpen(false);
             }}
-            className="block w-full rounded px-2 py-1.5 text-left text-ink-700 hover:bg-ink-50"
+            className="block w-full rounded px-2 py-1.5 text-left text-ink-700 transition-colors hover:bg-ink-50"
           >
             Request a swap
           </button>
           <button
             disabled={removing}
             onClick={handleRemove}
-            className="block w-full rounded px-2 py-1.5 text-left text-denied-700 hover:bg-denied-100 disabled:opacity-50"
+            className="block w-full rounded px-2 py-1.5 text-left text-denied-700 transition-colors hover:bg-denied-100 disabled:opacity-50"
           >
             {removing ? "Removing…" : "Remove"}
           </button>
@@ -225,7 +225,7 @@ function OverflowPill({ shifts }: { shifts: Shift[] }) {
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full rounded bg-ink-100 px-1 py-0.5 text-left text-micro font-medium text-ink-600 hover:bg-ink-200 sm:text-caption"
+        className="w-full rounded bg-ink-100 px-1 py-0.5 text-left text-micro font-medium text-ink-600 transition-colors hover:bg-ink-200 sm:text-caption"
       >
         +{shifts.length} more
       </button>

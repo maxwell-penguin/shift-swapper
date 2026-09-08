@@ -15,6 +15,7 @@ export function TeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [group, setGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -37,6 +38,7 @@ export function TeamPage() {
       setError(e.message);
     } finally {
       setLoading(false);
+      setLoadedOnce(true);
     }
   }, []);
 
@@ -106,7 +108,7 @@ export function TeamPage() {
     window.location.href = "/";
   }
 
-  if (loading) return <LoadingState label="Loading your team…" />;
+  if (loading && !loadedOnce) return <LoadingState label="Loading your team…" />;
   if (error) return <ErrorState message={error} onRetry={load} />;
 
   return (
@@ -172,7 +174,7 @@ export function TeamPage() {
                             <span className="ml-1 text-ink-400">(you)</span>
                             <button
                               onClick={() => startEditName(member.name)}
-                              className="ml-1.5 text-caption font-normal text-accent-600 hover:text-accent-700"
+                              className="ml-1.5 text-caption font-normal text-accent-600 transition-colors hover:text-accent-700"
                             >
                               Edit
                             </button>
@@ -183,7 +185,7 @@ export function TeamPage() {
                     {nameError && editingThisRow && <p className="mt-1 text-caption text-denied-400">{nameError}</p>}
                     {!editingThisRow && (
                       <span
-                        className={`inline-block rounded-full border px-1.5 py-0.5 text-micro font-medium ${
+                        className={`inline-block rounded-full border px-1.5 py-0.5 text-micro font-medium transition-colors ${
                           member.role === "ADMIN"
                             ? "border-accent-500 bg-accent-100 text-accent-700"
                             : "border-ink-300 bg-ink-100 text-ink-600"

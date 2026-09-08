@@ -51,6 +51,7 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
 
   const [swaps, setSwaps] = useState<Swap[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actingOn, setActingOn] = useState<string | null>(null);
 
@@ -70,7 +71,10 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
       })
       .then(setSwaps)
       .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setLoadedOnce(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -135,15 +139,15 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
     await loadSwaps();
   }
 
-  if (loading) return <LoadingState label="Loading swap requests…" />;
+  if (loading && !loadedOnce) return <LoadingState label="Loading swap requests…" />;
   if (error) return <ErrorState message={error} onRetry={loadSwaps} />;
   if (swaps.length === 0) {
-    return (
-      <EmptyState
-        title="No swap requests right now"
-        body="Requests you make or receive will show up here."
-      />
+    const empty = (
+      <EmptyState title="No swap requests right now" body="Requests you make or receive will show up here." />
     );
+    // Compact mode already sits inside the sidebar's own Card — wrapping
+    // again would nest a card inside a card.
+    return compact ? empty : <Card className="p-4">{empty}</Card>;
   }
 
   const dateFormat = compact ? "MMM d" : "EEE, MMM d";
@@ -161,7 +165,9 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
 
           return (
             <li key={swap.id}>
-              <Card className={`${compact ? "p-3" : "p-4"} ${isPending ? "border-mutual-400/40 bg-mutual-100" : ""}`}>
+              <Card
+                className={`transition-colors ${compact ? "p-3" : "p-4"} ${isPending ? "border-mutual-400/40 bg-mutual-100" : ""}`}
+              >
                 <div className={`flex gap-2 ${compact ? "flex-col" : "flex-wrap items-start justify-between"}`}>
                   <div>
                     <p className={`font-medium text-ink-900 ${compact ? "text-label" : "text-body"}`}>

@@ -52,9 +52,6 @@ const AVATAR_SIZES = {
   md: "h-8 w-8 text-caption",
 } as const;
 
-// Wraps colorForUser/initialsFor — this exact span shape is currently
-// duplicated inline in day-cell.tsx, chat-panel.tsx, team-page.tsx, and
-// cycle-card.tsx; those adopt this in the next pass.
 export function Avatar({
   userId,
   name,

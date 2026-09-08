@@ -83,7 +83,7 @@ export function OnboardingForm() {
       {error && <p className="mb-4 text-label text-denied-400">{error}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="flex flex-col gap-3 p-5">
+        <Card className="flex flex-col gap-3 p-6">
           <div>
             <h2 className="text-title font-medium text-ink-900">Create a new group</h2>
             <p className="text-caption text-ink-500">Start fresh — you&rsquo;ll get a code to invite everyone else.</p>
@@ -100,7 +100,7 @@ export function OnboardingForm() {
           </Button>
         </Card>
 
-        <Card className="flex flex-col gap-3 p-5">
+        <Card className="flex flex-col gap-3 p-6">
           <div>
             <h2 className="text-title font-medium text-ink-900">Join a group</h2>
             <p className="text-caption text-ink-500">Got an invite code from someone already using it?</p>

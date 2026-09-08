@@ -171,7 +171,7 @@ export function CycleCard({
   const showRlcButtons = isAllAgreed && isAdmin;
 
   return (
-    <Card className={`p-4 ${isAllAgreed ? "border-mutual-400/40 bg-mutual-100" : ""}`}>
+    <Card className={`p-4 transition-colors ${isAllAgreed ? "border-mutual-400/40 bg-mutual-100" : ""}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-label font-medium text-ink-900">{cycle.preferences.length}-way trade</p>
         <StatusBadge tone={STATUS_TONE[cycle.status] ?? "open"} label={STATUS_LABEL[cycle.status] ?? cycle.status} />
