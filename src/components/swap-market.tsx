@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { parseDateOnly } from "@/lib/dates";
-import { Button, Card, ErrorState, LoadingState } from "@/components/ui";
+import { Button, Card, EmptyState, ErrorState, LoadingState } from "@/components/ui";
 import { CycleCard, type SwapCycleT } from "@/components/cycle-card";
 
 type Shift = { id: string; ownerId: string; date: string; startTime: string; endTime: string };
@@ -173,13 +173,13 @@ export function SwapMarket() {
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-6">
         <Card className="p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">Post a preference</h2>
+          <h2 className="mb-3 text-title font-medium text-ink-900">Post a preference</h2>
 
-          <label className="mb-1 block text-xs font-medium text-slate-500">Shift you want off</label>
+          <label className="mb-1 block text-caption font-medium text-ink-500">Shift you want off</label>
           <select
             value={giveShiftId}
             onChange={(e) => setGiveShiftId(e.target.value)}
-            className="mb-3 w-full rounded-md border border-stone-300 px-2.5 py-1.5 text-sm"
+            className="mb-3 w-full rounded-card border border-ink-300 px-2.5 py-1.5 text-label"
           >
             <option value="">Choose a shift…</option>
             {availableToGive.map((s) => (
@@ -191,10 +191,10 @@ export function SwapMarket() {
 
           {marketOffers.length > 0 && (
             <div className="mb-3">
-              <p className="mb-1 text-xs font-medium text-slate-500">Specific shifts you&rsquo;d take</p>
-              <div className="max-h-32 space-y-1 overflow-y-auto rounded-md border border-stone-200 p-2">
+              <p className="mb-1 text-caption font-medium text-ink-500">Specific shifts you&rsquo;d take</p>
+              <div className="max-h-32 space-y-1 overflow-y-auto rounded-card border border-ink-200 p-2 scrollbar-thin">
                 {marketOffers.map((p) => (
-                  <label key={p.id} className="flex items-center gap-2 text-sm text-slate-700">
+                  <label key={p.id} className="flex items-center gap-2 text-label text-ink-700">
                     <input
                       type="checkbox"
                       checked={acceptableShiftIds.has(p.giveShiftId)}
@@ -208,7 +208,7 @@ export function SwapMarket() {
             </div>
           )}
 
-          <p className="mb-1 text-xs font-medium text-slate-500">
+          <p className="mb-1 text-caption font-medium text-ink-500">
             Or accept any shift in this range, used only if none of the above is available
           </p>
           <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -216,19 +216,19 @@ export function SwapMarket() {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+              className="rounded-card border border-ink-300 px-2 py-1.5 text-label"
             />
-            <span className="text-slate-400">to</span>
+            <span className="text-ink-400">to</span>
             <input
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+              className="rounded-card border border-ink-300 px-2 py-1.5 text-label"
             />
             <select
               value={timeOfDay}
               onChange={(e) => setTimeOfDay(e.target.value)}
-              className="rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+              className="rounded-card border border-ink-300 px-2 py-1.5 text-label"
             >
               {TIME_OF_DAY_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -238,7 +238,7 @@ export function SwapMarket() {
             </select>
           </div>
 
-          {postError && <p className="mb-3 text-sm text-rose-600">{postError}</p>}
+          {postError && <p className="mb-3 text-label text-denied-400">{postError}</p>}
 
           <Button disabled={!giveShiftId || posting} onClick={submitPreference}>
             {posting ? "Posting…" : "Post to the market"}
@@ -246,22 +246,25 @@ export function SwapMarket() {
         </Card>
 
         <Card className="p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">Your open preferences</h2>
+          <h2 className="mb-3 text-title font-medium text-ink-900">Your open preferences</h2>
           {myPreferences.length === 0 ? (
-            <p className="text-sm text-slate-500">You haven&rsquo;t posted anything to the market yet.</p>
+            <EmptyState
+              title="Nothing posted yet"
+              body="Offer a shift you want off, and it'll show up here until it's matched."
+            />
           ) : (
             <ul className="space-y-2">
               {myPreferences.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <span className="text-slate-700">
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-label">
+                  <span className="text-ink-700">
                     {format(parseDateOnly(p.giveShift.date), "MMM d")}, {p.giveShift.startTime}–
                     {p.giveShift.endTime}
-                    {p.status === "matched" && <span className="ml-2 text-amber-700">(matched)</span>}
+                    {p.status === "matched" && <span className="ml-2 text-mutual-700">(matched)</span>}
                   </span>
                   {p.status === "open" && (
                     <button
                       onClick={() => cancelPreference(p.id)}
-                      className="text-xs text-slate-400 hover:text-rose-600"
+                      className="text-caption text-ink-400 hover:text-denied-400"
                     >
                       Withdraw
                     </button>
@@ -277,8 +280,8 @@ export function SwapMarket() {
         <Card className="p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Proposed trades</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="text-title font-medium text-ink-900">Proposed trades</h2>
+              <p className="text-caption text-ink-500">
                 Finds direct swaps and longer chains alike across everyone&rsquo;s open preferences.
               </p>
             </div>
@@ -286,11 +289,16 @@ export function SwapMarket() {
               {finding ? "Searching…" : "Find matches"}
             </Button>
           </div>
-          {findResult && <p className="mt-2 text-sm text-slate-600">{findResult}</p>}
+          {findResult && <p className="mt-2 text-label text-ink-600">{findResult}</p>}
         </Card>
 
         {cycles.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">No proposed trades right now.</p>
+          <Card className="p-4">
+            <EmptyState
+              title="No proposed trades yet"
+              body="Run the matcher above once a few people have posted preferences."
+            />
+          </Card>
         ) : (
           <ul className="space-y-3">
             {cycles.map((cycle) => (

@@ -72,46 +72,46 @@ export function NotificationBell() {
     <div ref={menuRef} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:text-slate-200"
+        className="relative flex h-8 w-8 items-center justify-center rounded-full text-ink-400 hover:text-ink-200"
         aria-label="Notifications"
       >
         <BellIcon />
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-slate-900">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent-500 px-1 text-micro font-semibold text-ink-900">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-md border border-stone-200 bg-white text-slate-900 shadow-lg">
-          <div className="flex items-center justify-between border-b border-stone-200 px-3 py-2">
-            <p className="text-sm font-semibold">Notifications</p>
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-card border border-ink-200 bg-white text-ink-900 shadow-lg">
+          <div className="flex items-center justify-between border-b border-ink-200 px-3 py-2">
+            <p className="text-label font-semibold">Notifications</p>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs font-medium text-amber-600 hover:text-amber-700">
+              <button onClick={markAllRead} className="text-caption font-medium text-accent-600 hover:text-accent-700">
                 Mark all read
               </button>
             )}
           </div>
-          <div className="max-h-80 overflow-y-auto">
+          <div className="scrollbar-thin max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-slate-400">No notifications yet.</p>
+              <p className="px-3 py-6 text-center text-label text-ink-400">No notifications yet.</p>
             ) : (
               notifications.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => handleClickItem(n)}
-                  className={`flex w-full items-start gap-2 border-b border-stone-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-stone-50 ${
-                    n.read ? "" : "bg-amber-50/60"
+                  className={`flex w-full items-start gap-2 border-b border-ink-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-ink-50 ${
+                    n.read ? "" : "bg-accent-100/60"
                   }`}
                 >
                   <span
-                    className={`mt-1.5 h-1.5 w-1.5 flex-none rounded-full ${n.read ? "bg-transparent" : "bg-amber-500"}`}
+                    className={`mt-1.5 h-1.5 w-1.5 flex-none rounded-full ${n.read ? "bg-transparent" : "bg-accent-500"}`}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-slate-900">{n.title}</span>
-                    <span className="block text-xs text-slate-600">{n.body}</span>
-                    <span className="mt-0.5 block text-[10px] text-slate-400">
+                    <span className="block text-label font-medium text-ink-900">{n.title}</span>
+                    <span className="block text-caption text-ink-600">{n.body}</span>
+                    <span className="mt-0.5 block text-micro text-ink-400">
                       {formatDistanceToNowStrict(new Date(n.createdAt), { addSuffix: true })}
                     </span>
                   </span>

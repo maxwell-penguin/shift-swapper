@@ -49,6 +49,8 @@ export function DashboardGrid() {
   const [posting, setPosting] = useState(false);
   const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
   const [targetId, setTargetId] = useState("");
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  const [addingHereKey, setAddingHereKey] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -100,11 +102,9 @@ export function DashboardGrid() {
     return map;
   }, [shifts]);
 
-  async function handleDragEnd(event: DragEndEvent) {
-    setActiveId(null);
-    const dateKey = event.over?.id;
-    if (event.active.id !== NEW_SHIFT_DRAG_ID || !dateKey || typeof dateKey !== "string") return;
-
+  // Shared by the drag-and-drop path and the tap-to-add fallback below — both
+  // end at the same "create a default 19:00–08:00 shift on this day" action.
+  async function createShiftOn(dateKey: string) {
     setDropError(null);
     const res = await fetch("/api/shifts", {
       method: "POST",
@@ -118,6 +118,20 @@ export function DashboardGrid() {
     const created = await res.json();
     const refreshed = await loadShifts();
     setQuickEditShift(refreshed.find((s) => s.id === created.id) ?? null);
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+    const dateKey = event.over?.id;
+    if (event.active.id !== NEW_SHIFT_DRAG_ID || !dateKey || typeof dateKey !== "string") return;
+    await createShiftOn(dateKey);
+  }
+
+  async function handleAddHere(dateKey: string) {
+    setAddingHereKey(dateKey);
+    await createShiftOn(dateKey);
+    setAddingHereKey(null);
+    setSelectedDayKey(null);
   }
 
   async function saveQuickEdit(shiftId: string, patch: { startTime: string; endTime: string }) {
@@ -168,7 +182,7 @@ export function DashboardGrid() {
             <Button variant="secondary" onClick={() => setMonth(format(subMonths(monthDate(month), 1), "yyyy-MM"))}>
               &larr;
             </Button>
-            <h1 className="min-w-[10rem] text-center text-xl font-semibold text-slate-900">
+            <h1 className="min-w-[10rem] text-center text-display font-semibold text-ink-900">
               {format(monthDate(month), "MMMM yyyy")}
             </h1>
             <Button variant="secondary" onClick={() => setMonth(format(addMonths(monthDate(month), 1), "yyyy-MM"))}>
@@ -177,12 +191,12 @@ export function DashboardGrid() {
           </div>
           <div className="flex flex-col items-center gap-1 sm:items-end">
             <NewShiftPill />
-            <p className="text-xs text-slate-400">Drag onto a day to add your shift</p>
+            <p className="text-caption text-ink-400">Drag onto a day, or tap a day then "Add shift here"</p>
           </div>
         </div>
 
         {dropError && (
-          <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          <div className="mb-3 rounded-card border border-denied-400/30 bg-denied-100 px-3 py-2 text-label text-denied-700">
             {dropError}
           </div>
         )}
@@ -197,7 +211,7 @@ export function DashboardGrid() {
               {WEEKDAY_LABELS.map((label) => (
                 <div
                   key={label}
-                  className="border-b border-r border-stone-200 bg-stone-50 py-2 text-center text-xs font-medium text-slate-500 last:border-r-0 sm:text-sm"
+                  className="border-b border-r border-ink-200 bg-ink-50 py-2 text-center text-caption font-medium text-ink-500 last:border-r-0 sm:text-label"
                 >
                   {label}
                 </div>
@@ -213,6 +227,10 @@ export function DashboardGrid() {
                     shifts={shiftsByDate.get(key) ?? []}
                     currentUserId={userId}
                     quickEditShift={quickEditShift}
+                    selected={selectedDayKey === key}
+                    onSelect={() => setSelectedDayKey((cur) => (cur === key ? null : key))}
+                    onAddHere={() => handleAddHere(key)}
+                    addingHere={addingHereKey === key}
                     onSaveQuickEdit={saveQuickEdit}
                     onDismissQuickEdit={() => setQuickEditShift(null)}
                     onRequestSwap={(shift) => {
@@ -232,24 +250,24 @@ export function DashboardGrid() {
 
       {swapShift && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-ink-950/50 p-4"
           onClick={() => setSwapShift(null)}
         >
-          <div className="w-full max-w-sm rounded-md bg-white p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <p className="mb-4 text-sm text-slate-700">
+          <div className="w-full max-w-sm rounded-card bg-white p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <p className="mb-4 text-body text-ink-700">
               Request a swap for your {swapShift.startTime}–{swapShift.endTime} shift on{" "}
               {format(parseDateOnly(swapShift.date), "MMM d")}?
             </p>
 
             {members.length > 1 && (
               <div className="mb-4">
-                <label className="mb-1 block text-xs font-medium text-slate-500">
+                <label className="mb-1 block text-caption font-medium text-ink-500">
                   Aim this at someone specific (optional)
                 </label>
                 <select
                   value={targetId}
                   onChange={(e) => setTargetId(e.target.value)}
-                  className="w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+                  className="w-full rounded-card border border-ink-300 px-2 py-1.5 text-label"
                 >
                   <option value="">Anyone in the group</option>
                   {members

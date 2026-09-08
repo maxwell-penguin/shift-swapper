@@ -55,11 +55,11 @@ export function OnboardingForm() {
   if (createdGroup) {
     return (
       <Card className="w-full max-w-sm p-6 text-center">
-        <p className="text-sm text-slate-600">
-          <strong className="text-slate-900">{createdGroup.name}</strong> is ready. Share this code so the rest of
+        <p className="text-body text-ink-600">
+          <strong className="text-ink-900">{createdGroup.name}</strong> is ready. Share this code so the rest of
           your group can join:
         </p>
-        <p className="my-4 rounded-md bg-stone-50 py-3 text-2xl font-semibold tracking-[0.3em] text-slate-900">
+        <p className="my-4 rounded-card bg-ink-50 py-3 text-display font-semibold tracking-[0.3em] text-ink-900">
           {createdGroup.inviteCode}
         </p>
         <Button className="w-full" onClick={() => (window.location.href = "/dashboard")}>
@@ -71,29 +71,29 @@ export function OnboardingForm() {
 
   return (
     <div className="w-full max-w-2xl">
-      <label className="mb-1 block text-sm font-medium text-slate-700">Your name</label>
+      <label className="mb-1 block text-label font-medium text-ink-700">Your name</label>
       <input
         type="text"
         value={displayName}
         onChange={(e) => setDisplayName(e.target.value)}
         placeholder="Jamie Ortiz"
-        className="mb-6 w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+        className="mb-6 w-full rounded-card border border-ink-300 px-3 py-2 text-label"
       />
 
-      {error && <p className="mb-4 text-sm text-rose-600">{error}</p>}
+      {error && <p className="mb-4 text-label text-denied-400">{error}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card className="flex flex-col gap-3 p-5">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Create a new group</h2>
-            <p className="text-xs text-slate-500">Start fresh — you&rsquo;ll get a code to invite everyone else.</p>
+            <h2 className="text-title font-medium text-ink-900">Create a new group</h2>
+            <p className="text-caption text-ink-500">Start fresh — you&rsquo;ll get a code to invite everyone else.</p>
           </div>
           <input
             type="text"
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
             placeholder="Group name, e.g. Elm House"
-            className="rounded-md border border-stone-300 px-3 py-2 text-sm"
+            className="rounded-card border border-ink-300 px-3 py-2 text-label"
           />
           <Button disabled={!nameReady || !groupName.trim() || creating} onClick={handleCreate}>
             {creating ? "Creating…" : "Create group"}
@@ -102,8 +102,8 @@ export function OnboardingForm() {
 
         <Card className="flex flex-col gap-3 p-5">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Join a group</h2>
-            <p className="text-xs text-slate-500">Got an invite code from someone already using it?</p>
+            <h2 className="text-title font-medium text-ink-900">Join a group</h2>
+            <p className="text-caption text-ink-500">Got an invite code from someone already using it?</p>
           </div>
           <input
             type="text"
@@ -111,7 +111,7 @@ export function OnboardingForm() {
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
             placeholder="Invite code"
             maxLength={6}
-            className="rounded-md border border-stone-300 px-3 py-2 text-sm uppercase tracking-widest"
+            className="rounded-card border border-ink-300 px-3 py-2 text-label uppercase tracking-widest"
           />
           <Button
             variant="secondary"

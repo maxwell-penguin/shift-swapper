@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { format } from "date-fns";
-import { colorForUser, initialsFor } from "@/lib/user-color";
-import { Button } from "@/components/ui";
+import { Avatar, Button, DropSettle } from "@/components/ui";
 
 export type Shift = {
   id: string;
@@ -24,6 +23,10 @@ type DayCellProps = {
   shifts: Shift[];
   currentUserId?: string;
   quickEditShift: Shift | null;
+  selected: boolean;
+  onSelect: () => void;
+  onAddHere: () => void;
+  addingHere: boolean;
   onSaveQuickEdit: (shiftId: string, patch: { startTime: string; endTime: string }) => Promise<boolean>;
   onDismissQuickEdit: () => void;
   onRequestSwap: (shift: Shift) => void;
@@ -37,6 +40,10 @@ export function DayCell({
   shifts,
   currentUserId,
   quickEditShift,
+  selected,
+  onSelect,
+  onAddHere,
+  addingHere,
   onSaveQuickEdit,
   onDismissQuickEdit,
   onRequestSwap,
@@ -52,38 +59,64 @@ export function DayCell({
   return (
     <div
       ref={setNodeRef}
-      className={`relative flex min-h-[5.5rem] flex-col gap-1.5 border-b border-r border-stone-200 p-1.5 transition-colors sm:min-h-[7rem] sm:p-2 ${
-        inCurrentMonth ? "bg-white" : "bg-stone-50"
-      } ${isOver ? "bg-amber-50 ring-2 ring-inset ring-amber-400" : ""}`}
+      onClick={onSelect}
+      className={`relative flex min-h-[5.5rem] flex-col gap-1.5 border-b border-r border-ink-200 p-1.5 transition-colors sm:min-h-[7rem] sm:p-2 ${
+        inCurrentMonth ? "bg-white" : "bg-ink-50"
+      } ${
+        isOver
+          ? "bg-accent-100 ring-2 ring-inset ring-accent-500"
+          : selected
+            ? "ring-1 ring-inset ring-accent-300"
+            : ""
+      }`}
     >
       <span
-        className={`self-end text-xs sm:text-sm ${
+        className={`self-end text-caption sm:text-label ${
           isToday
-            ? "flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 font-semibold text-white sm:h-6 sm:w-6"
+            ? "flex h-5 w-5 items-center justify-center rounded-full bg-ink-900 font-semibold text-white sm:h-6 sm:w-6"
             : inCurrentMonth
-              ? "text-slate-600"
-              : "text-slate-300"
+              ? "text-ink-600"
+              : "text-ink-300"
         }`}
       >
         {format(date, "d")}
       </span>
 
       <div className="flex flex-wrap gap-1">
-        {visible.map((shift) => (
-          <ShiftChip
-            key={shift.id}
-            shift={shift}
-            isMine={shift.ownerId === currentUserId}
-            onRequestSwap={onRequestSwap}
-            onRemove={onRemove}
-          />
-        ))}
+        {visible.map((shift) => {
+          const chip = (
+            <ShiftChip
+              shift={shift}
+              isMine={shift.ownerId === currentUserId}
+              onRequestSwap={onRequestSwap}
+              onRemove={onRemove}
+            />
+          );
+          return quickEditShift?.id === shift.id ? (
+            <DropSettle key={shift.id}>{chip}</DropSettle>
+          ) : (
+            <div key={shift.id}>{chip}</div>
+          );
+        })}
         {overflow > 0 && (
-          <span className="flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-stone-200 px-1 text-[10px] font-medium text-slate-600 sm:h-7">
+          <span className="flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-ink-200 px-1 text-micro font-medium text-ink-600 sm:h-7">
             +{overflow}
           </span>
         )}
       </div>
+
+      {selected && !editingHere && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddHere();
+          }}
+          disabled={addingHere}
+          className="absolute left-0 top-full z-20 mt-1 whitespace-nowrap rounded-card border border-dashed border-accent-500 bg-white px-2 py-1 text-caption font-medium text-accent-700 shadow-sm hover:bg-accent-100 disabled:opacity-50"
+        >
+          {addingHere ? "Adding…" : "+ Add shift here"}
+        </button>
+      )}
 
       {editingHere && quickEditShift && (
         <QuickEditPopover
@@ -111,7 +144,6 @@ function ShiftChip({
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const color = colorForUser(shift.ownerId);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -132,21 +164,18 @@ function ShiftChip({
   }
 
   return (
-    <div ref={menuRef} className="relative">
+    <div ref={menuRef} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
         onClick={() => isMine && setMenuOpen((v) => !v)}
         title={`${shift.owner.name || "Unnamed"}, ${shift.startTime}–${shift.endTime}`}
-        className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ring-2 ring-white transition-transform sm:h-7 sm:w-7 sm:text-xs ${
-          isMine ? "cursor-pointer hover:scale-110" : "cursor-default"
-        }`}
-        style={{ backgroundColor: color.hex, color: color.text }}
+        className={`rounded-full transition-transform ${isMine ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
       >
-        {initialsFor(shift.owner.name)}
+        <Avatar userId={shift.ownerId} name={shift.owner.name} size="sm" ring />
       </button>
 
       {menuOpen && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-44 rounded-md border border-stone-200 bg-white p-1 text-sm shadow-lg">
-          <p className="px-2 py-1 text-xs text-slate-400">
+        <div className="absolute left-0 top-full z-30 mt-1 w-44 rounded-card border border-ink-200 bg-white p-1 text-label shadow-lg">
+          <p className="px-2 py-1 text-caption text-ink-400">
             {shift.startTime}–{shift.endTime}
           </p>
           <button
@@ -154,18 +183,18 @@ function ShiftChip({
               onRequestSwap(shift);
               setMenuOpen(false);
             }}
-            className="block w-full rounded px-2 py-1.5 text-left text-slate-700 hover:bg-stone-50"
+            className="block w-full rounded px-2 py-1.5 text-left text-ink-700 hover:bg-ink-50"
           >
             Request a swap
           </button>
           <button
             disabled={removing}
             onClick={handleRemove}
-            className="block w-full rounded px-2 py-1.5 text-left text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+            className="block w-full rounded px-2 py-1.5 text-left text-denied-700 hover:bg-denied-100 disabled:opacity-50"
           >
             {removing ? "Removing…" : "Remove"}
           </button>
-          {error && <p className="px-2 pb-1 pt-0.5 text-xs text-rose-600">{error}</p>}
+          {error && <p className="px-2 pb-1 pt-0.5 text-caption text-denied-400">{error}</p>}
         </div>
       )}
     </div>
@@ -196,29 +225,32 @@ function QuickEditPopover({
   }
 
   return (
-    <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-md border border-stone-200 bg-white p-3 shadow-lg">
-      <p className="mb-2 text-xs font-medium text-slate-600">Shift added — adjust the time?</p>
+    <div
+      className="absolute left-0 top-full z-30 mt-1 w-64 rounded-card border border-ink-200 bg-white p-3 shadow-lg"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="mb-2 text-caption font-medium text-ink-600">Shift added — adjust the time?</p>
       <div className="flex items-center gap-1.5">
         <input
           type="time"
           value={startTime}
           onChange={(e) => setStartTime(e.target.value)}
-          className="w-[6.5rem] rounded border border-stone-300 px-1.5 py-1 text-xs"
+          className="w-[6.5rem] rounded border border-ink-300 px-1.5 py-1 text-caption"
         />
-        <span className="text-slate-400">to</span>
+        <span className="text-ink-400">to</span>
         <input
           type="time"
           value={endTime}
           onChange={(e) => setEndTime(e.target.value)}
-          className="w-[6.5rem] rounded border border-stone-300 px-1.5 py-1 text-xs"
+          className="w-[6.5rem] rounded border border-ink-300 px-1.5 py-1 text-caption"
         />
       </div>
-      {error && <p className="mt-1.5 text-xs text-rose-600">Couldn't save that.</p>}
+      {error && <p className="mt-1.5 text-caption text-denied-400">Couldn't save that.</p>}
       <div className="mt-2 flex justify-end gap-1.5">
-        <Button variant="ghost" className="px-2 py-1 text-xs" onClick={onDismiss}>
+        <Button variant="ghost" className="px-2 py-1 text-caption" onClick={onDismiss}>
           Done
         </Button>
-        <Button className="px-2 py-1 text-xs" disabled={saving} onClick={handleSave}>
+        <Button className="px-2 py-1 text-caption" disabled={saving} onClick={handleSave}>
           {saving ? "Saving…" : "Save"}
         </Button>
       </div>

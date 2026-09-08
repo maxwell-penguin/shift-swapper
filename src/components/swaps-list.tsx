@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
-import { Button, Card, ErrorState, LoadingState } from "@/components/ui";
+import { Button, Card, EmptyState, ErrorState, LoadingState, StatusBadge, type StatusTone } from "@/components/ui";
 import { parseDateOnly, isBeforeToday } from "@/lib/dates";
 
 type Person = { id: string; name: string };
@@ -22,12 +22,12 @@ type Swap = {
   offeredShift: Shift | null;
 };
 
-const STATUS_STYLE: Record<string, string> = {
-  open: "bg-stone-100 text-slate-600 border-stone-300",
-  mutual: "bg-amber-100 text-amber-800 border-amber-400",
-  pending_approval: "bg-amber-100 text-amber-800 border-amber-400",
-  approved: "bg-emerald-100 text-emerald-800 border-emerald-400",
-  denied: "bg-rose-100 text-rose-800 border-rose-400",
+const STATUS_TONE: Record<string, StatusTone> = {
+  open: "open",
+  mutual: "mutual",
+  pending_approval: "mutual",
+  approved: "approved",
+  denied: "denied",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -37,14 +37,6 @@ const STATUS_LABEL: Record<string, string> = {
   approved: "Approved",
   denied: "Denied",
 };
-
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[status] ?? ""}`}>
-      {STATUS_LABEL[status] ?? status}
-    </span>
-  );
-}
 
 function monthKey(offset: number) {
   const d = new Date();
@@ -146,11 +138,16 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
   if (loading) return <LoadingState label="Loading swap requests…" />;
   if (error) return <ErrorState message={error} onRetry={loadSwaps} />;
   if (swaps.length === 0) {
-    return <p className="py-10 text-center text-sm text-slate-500">No swap requests right now.</p>;
+    return (
+      <EmptyState
+        title="No swap requests right now"
+        body="Requests you make or receive will show up here."
+      />
+    );
   }
 
   const dateFormat = compact ? "MMM d" : "EEE, MMM d";
-  const btnSize = compact ? "px-2.5 py-1 text-xs" : "";
+  const btnSize = compact ? "px-2.5 py-1 text-caption" : "";
 
   return (
     <>
@@ -164,18 +161,18 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
 
           return (
             <li key={swap.id}>
-              <Card className={`${compact ? "p-3" : "p-4"} ${isPending ? "border-amber-300 bg-amber-50" : ""}`}>
+              <Card className={`${compact ? "p-3" : "p-4"} ${isPending ? "border-mutual-400/40 bg-mutual-100" : ""}`}>
                 <div className={`flex gap-2 ${compact ? "flex-col" : "flex-wrap items-start justify-between"}`}>
                   <div>
-                    <p className={`font-medium text-slate-900 ${compact ? "text-sm" : ""}`}>
+                    <p className={`font-medium text-ink-900 ${compact ? "text-label" : "text-body"}`}>
                       {format(parseDateOnly(swap.shift.date), dateFormat)}, {swap.shift.startTime}–
                       {swap.shift.endTime}
                     </p>
-                    <p className={`text-slate-600 ${compact ? "text-xs" : "text-sm"}`}>
+                    <p className={`text-ink-600 ${compact ? "text-caption" : "text-label"}`}>
                       Requested by {swap.requester.name}
                     </p>
                     {swap.acceptedBy && (
-                      <p className={`text-slate-600 ${compact ? "text-xs" : "text-sm"}`}>
+                      <p className={`text-ink-600 ${compact ? "text-caption" : "text-label"}`}>
                         Agreed to by {swap.acceptedBy.name}
                         {swap.offeredShift && (
                           <>
@@ -187,7 +184,10 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
                       </p>
                     )}
                   </div>
-                  <StatusBadge status={swap.status} />
+                  <StatusBadge
+                    tone={STATUS_TONE[swap.status] ?? "open"}
+                    label={STATUS_LABEL[swap.status] ?? swap.status}
+                  />
                 </div>
 
                 {(canAccept || showRlcButtons) && (
@@ -217,11 +217,11 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
 
       {acceptingSwap && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-ink-950/50 p-4"
           onClick={() => setAcceptingSwap(null)}
         >
-          <div className="w-full max-w-sm rounded-md bg-white p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-            <p className="mb-4 text-sm text-slate-700">
+          <div className="w-full max-w-sm rounded-card bg-white p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <p className="mb-4 text-body text-ink-700">
               Accept {acceptingSwap.requester.name}&rsquo;s {acceptingSwap.shift.startTime}–
               {acceptingSwap.shift.endTime} shift on {format(parseDateOnly(acceptingSwap.shift.date), "MMM d")}?
             </p>
@@ -235,12 +235,12 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
                 </Button>
 
                 {myShifts && myShifts.length > 0 && (
-                  <div className="rounded-md border border-stone-200 p-3">
-                    <p className="mb-2 text-xs font-medium text-slate-500">Or offer a shift back</p>
+                  <div className="rounded-card border border-ink-200 p-3">
+                    <p className="mb-2 text-caption font-medium text-ink-500">Or offer a shift back</p>
                     <select
                       value={selectedOfferId}
                       onChange={(e) => setSelectedOfferId(e.target.value)}
-                      className="mb-2 w-full rounded-md border border-stone-300 px-2 py-1.5 text-sm"
+                      className="mb-2 w-full rounded-card border border-ink-300 px-2 py-1.5 text-label"
                     >
                       <option value="">Choose one of your shifts…</option>
                       {myShifts.map((s) => (
@@ -262,7 +262,7 @@ export function SwapsList({ compact = false }: { compact?: boolean }) {
               </div>
             )}
 
-            {acceptError && <p className="mt-3 text-sm text-rose-600">{acceptError}</p>}
+            {acceptError && <p className="mt-3 text-label text-denied-400">{acceptError}</p>}
 
             <div className="mt-4 flex justify-end">
               <Button variant="ghost" onClick={() => setAcceptingSwap(null)}>

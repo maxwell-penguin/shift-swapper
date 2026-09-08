@@ -17,15 +17,15 @@ export function Sidebar() {
 
   return (
     <Card className="flex h-[28rem] w-full flex-none flex-col overflow-hidden lg:h-[36rem] lg:w-80">
-      <div className="flex border-b border-stone-200">
+      <div className="flex border-b border-ink-200">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex-1 border-b-2 px-3 py-2.5 text-label font-medium transition-colors ${
               tab === t.id
-                ? "border-amber-400 text-slate-900"
-                : "border-transparent text-slate-400 hover:text-slate-600"
+                ? "border-accent-500 text-ink-900"
+                : "border-transparent text-ink-400 hover:text-ink-600"
             }`}
           >
             {t.label}
@@ -36,7 +36,7 @@ export function Sidebar() {
       {tab === "chat" ? (
         <ChatPanel />
       ) : (
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="scrollbar-thin flex-1 overflow-y-auto p-3">
           <SwapsList compact />
         </div>
       )}

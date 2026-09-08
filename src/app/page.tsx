@@ -8,9 +8,9 @@ export default async function Home() {
   if (session) redirect((session.user as any).groupId ? "/dashboard" : "/onboarding");
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center">
-      <h1 className="text-2xl font-semibold text-slate-900">Shift Swapper</h1>
-      <p className="max-w-xs text-sm text-slate-500">Enter your email and we'll send you a link to sign in.</p>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-ink-50 px-4 text-center">
+      <h1 className="text-display font-semibold text-ink-900">Shift Swapper</h1>
+      <p className="max-w-xs text-label text-ink-500">Enter your email and we'll send you a link to sign in.</p>
       <MagicLinkForm />
     </main>
   );
