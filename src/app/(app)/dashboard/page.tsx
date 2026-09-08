@@ -10,7 +10,15 @@ import dynamic from "next/dynamic";
 const DashboardGrid = dynamic(() => import("@/components/dashboard-grid").then((m) => m.DashboardGrid), {
   ssr: false,
 });
+const Sidebar = dynamic(() => import("@/components/sidebar").then((m) => m.Sidebar), { ssr: false });
 
 export default function DashboardPage() {
-  return <DashboardGrid />;
+  return (
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="min-w-0 flex-1">
+        <DashboardGrid />
+      </div>
+      <Sidebar />
+    </div>
+  );
 }

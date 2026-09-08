@@ -26,6 +26,7 @@ model User {
   shifts          Shift[]       @relation("ShiftOwner")
   requestedSwaps  SwapRequest[] @relation("Requester")
   acceptedSwaps   SwapRequest[] @relation("AcceptedBy")
+  messages        Message[]
 }
 
 // Required by the NextAuth Prisma adapter. Not used by the Email provider
@@ -64,6 +65,17 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// One shared channel for all dons — no DMs, no per-swap threads.
+model Message {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Shift {

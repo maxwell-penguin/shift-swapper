@@ -38,13 +38,13 @@ const STATUS_LABEL: Record<string, string> = {
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[status] ?? ""}`}>
+    <span className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[status] ?? ""}`}>
       {STATUS_LABEL[status] ?? status}
     </span>
   );
 }
 
-export function SwapsList() {
+export function SwapsList({ compact = false }: { compact?: boolean }) {
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id;
 
@@ -86,8 +86,11 @@ export function SwapsList() {
     return <p className="py-10 text-center text-sm text-slate-500">No swap requests right now.</p>;
   }
 
+  const dateFormat = compact ? "MMM d" : "EEE, MMM d";
+  const btnSize = compact ? "px-2.5 py-1 text-xs" : "";
+
   return (
-    <ul className="space-y-3">
+    <ul className={compact ? "space-y-2" : "space-y-3"}>
       {swaps.map((swap) => {
         const canAccept =
           swap.status === "open" && swap.requesterId !== userId && (!swap.targetId || swap.targetId === userId);
@@ -97,32 +100,38 @@ export function SwapsList() {
 
         return (
           <li key={swap.id}>
-            <Card className={`p-4 ${isPending ? "border-amber-300 bg-amber-50" : ""}`}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
+            <Card className={`${compact ? "p-3" : "p-4"} ${isPending ? "border-amber-300 bg-amber-50" : ""}`}>
+              <div className={`flex gap-2 ${compact ? "flex-col" : "flex-wrap items-start justify-between"}`}>
                 <div>
-                  <p className="font-medium text-slate-900">
-                    {format(parseDateOnly(swap.shift.date), "EEE, MMM d")}, {swap.shift.startTime}–
+                  <p className={`font-medium text-slate-900 ${compact ? "text-sm" : ""}`}>
+                    {format(parseDateOnly(swap.shift.date), dateFormat)}, {swap.shift.startTime}–
                     {swap.shift.endTime}
                   </p>
-                  <p className="text-sm text-slate-600">Requested by {swap.requester.name}</p>
-                  {swap.acceptedBy && <p className="text-sm text-slate-600">Agreed to by {swap.acceptedBy.name}</p>}
+                  <p className={`text-slate-600 ${compact ? "text-xs" : "text-sm"}`}>
+                    Requested by {swap.requester.name}
+                  </p>
+                  {swap.acceptedBy && (
+                    <p className={`text-slate-600 ${compact ? "text-xs" : "text-sm"}`}>
+                      Agreed to by {swap.acceptedBy.name}
+                    </p>
+                  )}
                 </div>
                 <StatusBadge status={swap.status} />
               </div>
 
               {(canAccept || involvedInMutual) && (
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <div className={`mt-3 flex flex-col gap-2 ${compact ? "" : "sm:flex-row"}`}>
                   {canAccept && (
-                    <Button disabled={busy} onClick={() => act(swap.id, "accept")}>
+                    <Button className={btnSize} disabled={busy} onClick={() => act(swap.id, "accept")}>
                       Accept
                     </Button>
                   )}
                   {involvedInMutual && (
                     <>
-                      <Button variant="success" disabled={busy} onClick={() => act(swap.id, "approve")}>
+                      <Button className={btnSize} variant="success" disabled={busy} onClick={() => act(swap.id, "approve")}>
                         RLC approved
                       </Button>
-                      <Button variant="danger" disabled={busy} onClick={() => act(swap.id, "deny")}>
+                      <Button className={btnSize} variant="danger" disabled={busy} onClick={() => act(swap.id, "deny")}>
                         RLC denied
                       </Button>
                     </>
