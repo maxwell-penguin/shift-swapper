@@ -28,6 +28,11 @@ model Group {
   messages        Message[]
 }
 
+enum Role {
+  MEMBER
+  ADMIN
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -42,6 +47,7 @@ model User {
   // what /onboarding checks for (see src/app/(app)/layout.tsx).
   groupId String?
   group   Group?  @relation(fields: [groupId], references: [id])
+  role    Role    @default(MEMBER)
 
   accounts Account[]
   sessions Session[]
@@ -51,6 +57,7 @@ model User {
   acceptedSwaps   SwapRequest[] @relation("AcceptedBy")
   messages        Message[]
   swapPreferences SwapPreference[]
+  notifications   Notification[]
 }
 
 // Required by the NextAuth Prisma adapter. Not used by the Email provider
@@ -123,9 +130,28 @@ model Shift {
   // multi-way market preferences where THIS shift is the one being given up
   swapPreferences SwapPreference[] @relation("PreferenceGiveShift")
 
+  @@unique([ownerId, date])
   @@index([date])
   @@index([ownerId])
   @@index([groupId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId   String
+  type      String   // "swap_targeted" | "swap_accepted" | "swap_approved" | "swap_denied"
+                      // | "cycle_proposed" | "cycle_all_agreed" | "cycle_approved"
+                      // | "cycle_denied" | "role_changed"
+  title     String
+  body      String
+  href      String?  // where to navigate on click, e.g. "/swaps" or "/market"
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
 }
 
 // The multi-way "Swap Market": people post a shift they want off plus what

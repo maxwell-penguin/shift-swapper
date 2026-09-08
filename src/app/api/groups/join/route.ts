@@ -9,6 +9,12 @@ import { db } from "@/lib/db";
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if ((session.user as any).groupId) {
+    return NextResponse.json(
+      { error: "You're already in a group — leave it first from the Team page." },
+      { status: 409 },
+    );
+  }
   const userId = (session.user as any).id;
 
   const { name, inviteCode } = await req.json();

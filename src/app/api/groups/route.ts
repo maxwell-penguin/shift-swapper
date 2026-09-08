@@ -10,6 +10,12 @@ import { generateInviteCode } from "@/lib/invite-code";
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if ((session.user as any).groupId) {
+    return NextResponse.json(
+      { error: "You're already in a group — leave it first from the Team page." },
+      { status: 409 },
+    );
+  }
   const userId = (session.user as any).id;
 
   const { name, groupName } = await req.json();
@@ -33,7 +39,10 @@ export async function POST(req: NextRequest) {
   }
   if (!group) return NextResponse.json({ error: "couldn't generate a unique invite code" }, { status: 500 });
 
-  await db.user.update({ where: { id: userId }, data: { name: trimmedName, groupId: group.id } });
+  await db.user.update({
+    where: { id: userId },
+    data: { name: trimmedName, groupId: group.id, role: "ADMIN" },
+  });
 
   return NextResponse.json(group, { status: 201 });
 }
