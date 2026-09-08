@@ -14,7 +14,7 @@ export type Shift = {
   owner: { id: string; name: string };
 };
 
-const MAX_VISIBLE_CHIPS = 4;
+const MAX_VISIBLE_CHIPS = 3;
 
 type DayCellProps = {
   date: Date;
@@ -52,8 +52,14 @@ export function DayCell({
   const dateKey = format(date, "yyyy-MM-dd");
   const { setNodeRef, isOver } = useDroppable({ id: dateKey });
 
-  const visible = shifts.slice(0, MAX_VISIBLE_CHIPS);
-  const overflow = shifts.length - visible.length;
+  // Your own shift always stays visible even if a day is crowded — it's the
+  // only chip you can act on (request a swap / remove), so it can't be the
+  // one that gets buried behind "+N more".
+  const sortedShifts = [...shifts].sort(
+    (a, b) => Number(b.ownerId === currentUserId) - Number(a.ownerId === currentUserId),
+  );
+  const visible = sortedShifts.slice(0, MAX_VISIBLE_CHIPS);
+  const hidden = sortedShifts.slice(MAX_VISIBLE_CHIPS);
   const editingHere = quickEditShift && shifts.some((s) => s.id === quickEditShift.id);
 
   return (
@@ -82,7 +88,7 @@ export function DayCell({
         {format(date, "d")}
       </span>
 
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-col gap-0.5">
         {visible.map((shift) => {
           const chip = (
             <ShiftChip
@@ -98,11 +104,7 @@ export function DayCell({
             <div key={shift.id}>{chip}</div>
           );
         })}
-        {overflow > 0 && (
-          <span className="flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-ink-200 px-1 text-micro font-medium text-ink-600 sm:h-7">
-            +{overflow}
-          </span>
-        )}
+        {hidden.length > 0 && <OverflowPill shifts={hidden} />}
       </div>
 
       {selected && !editingHere && (
@@ -163,14 +165,19 @@ function ShiftChip({
     else setMenuOpen(false);
   }
 
+  const firstName = (shift.owner.name || "Unnamed").split(" ")[0];
+
   return (
     <div ref={menuRef} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
         onClick={() => isMine && setMenuOpen((v) => !v)}
         title={`${shift.owner.name || "Unnamed"}, ${shift.startTime}–${shift.endTime}`}
-        className={`rounded-full transition-transform ${isMine ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
+        className={`flex w-full min-w-0 items-center gap-1 rounded transition-colors ${
+          isMine ? "cursor-pointer hover:bg-ink-100" : "cursor-default"
+        }`}
       >
-        <Avatar userId={shift.ownerId} name={shift.owner.name} size="sm" ring />
+        <Avatar userId={shift.ownerId} name={shift.owner.name} size="xs" />
+        <span className="truncate text-micro text-ink-700 sm:text-caption">{firstName}</span>
       </button>
 
       {menuOpen && (
@@ -195,6 +202,47 @@ function ShiftChip({
             {removing ? "Removing…" : "Remove"}
           </button>
           {error && <p className="px-2 pb-1 pt-0.5 text-caption text-denied-400">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OverflowPill({ shifts }: { shifts: Shift[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full rounded bg-ink-100 px-1 py-0.5 text-left text-micro font-medium text-ink-600 hover:bg-ink-200 sm:text-caption"
+      >
+        +{shifts.length} more
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-44 rounded-card border border-ink-200 bg-white p-1.5 shadow-lg">
+          <ul className="space-y-1">
+            {shifts.map((shift) => (
+              <li key={shift.id} className="flex items-center gap-1.5 px-1 py-0.5 text-caption text-ink-700">
+                <Avatar userId={shift.ownerId} name={shift.owner.name} size="xs" />
+                <span className="truncate">{shift.owner.name || "Unnamed"}</span>
+                <span className="ml-auto flex-none text-micro text-ink-400">
+                  {shift.startTime}–{shift.endTime}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

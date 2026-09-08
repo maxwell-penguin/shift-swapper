@@ -8,7 +8,7 @@ type Member = { id: string; name: string; role: "ADMIN" | "MEMBER"; createdAt: s
 type Group = { id: string; name: string; inviteCode: string; createdAt: string };
 
 export function TeamPage() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const myId = (session?.user as any)?.id;
   const isAdmin = (session?.user as any)?.role === "ADMIN";
 
@@ -20,6 +20,10 @@ export function TeamPage() {
   const [copied, setCopied] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,6 +56,35 @@ export function TeamPage() {
     });
     setBusyId(null);
     if (res.ok) await load();
+  }
+
+  function startEditName(current: string) {
+    setNameDraft(current);
+    setNameError(null);
+    setEditingName(true);
+  }
+
+  async function saveName() {
+    const trimmed = nameDraft.trim();
+    if (!trimmed) return;
+    setSavingName(true);
+    setNameError(null);
+    const res = await fetch("/api/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    setSavingName(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setNameError(body.error ?? "Couldn't save your name.");
+      return;
+    }
+    setEditingName(false);
+    // Session's name comes from the DB user row on every fetch — re-pull it
+    // (rather than write session state directly) so the nav/avatars agree
+    // with what actually saved.
+    await Promise.all([updateSession(), load()]);
   }
 
   async function copyInviteCode() {
@@ -99,28 +132,70 @@ export function TeamPage() {
           {members.map((member) => {
             const isLastAdminSelf = member.id === myId && member.role === "ADMIN" && adminCount === 1;
 
+            const isMe = member.id === myId;
+            const editingThisRow = isMe && editingName;
+
             return (
               <li key={member.id} className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Avatar userId={member.id} name={member.name} size="md" />
                   <div>
-                    <p className="text-label font-medium text-ink-900">
-                      {member.name || "Unnamed"}
-                      {member.id === myId && <span className="ml-1 text-ink-400">(you)</span>}
-                    </p>
-                    <span
-                      className={`inline-block rounded-full border px-1.5 py-0.5 text-micro font-medium ${
-                        member.role === "ADMIN"
-                          ? "border-accent-500 bg-accent-100 text-accent-700"
-                          : "border-ink-300 bg-ink-100 text-ink-600"
-                      }`}
-                    >
-                      {member.role}
-                    </span>
+                    {editingThisRow ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={nameDraft}
+                          onChange={(e) => setNameDraft(e.target.value)}
+                          autoFocus
+                          className="rounded-card border border-ink-300 px-2 py-1 text-label"
+                        />
+                        <Button
+                          className="px-2 py-1 text-caption"
+                          disabled={!nameDraft.trim() || savingName}
+                          onClick={saveName}
+                        >
+                          {savingName ? "Saving…" : "Save"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="px-2 py-1 text-caption"
+                          onClick={() => setEditingName(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-label font-medium text-ink-900">
+                        {member.name || "Unnamed"}
+                        {isMe && (
+                          <>
+                            <span className="ml-1 text-ink-400">(you)</span>
+                            <button
+                              onClick={() => startEditName(member.name)}
+                              className="ml-1.5 text-caption font-normal text-accent-600 hover:text-accent-700"
+                            >
+                              Edit
+                            </button>
+                          </>
+                        )}
+                      </p>
+                    )}
+                    {nameError && editingThisRow && <p className="mt-1 text-caption text-denied-400">{nameError}</p>}
+                    {!editingThisRow && (
+                      <span
+                        className={`inline-block rounded-full border px-1.5 py-0.5 text-micro font-medium ${
+                          member.role === "ADMIN"
+                            ? "border-accent-500 bg-accent-100 text-accent-700"
+                            : "border-ink-300 bg-ink-100 text-ink-600"
+                        }`}
+                      >
+                        {member.role}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {isAdmin && (
+                {isAdmin && !editingThisRow && (
                   <Button
                     variant="secondary"
                     className="px-2.5 py-1 text-caption"

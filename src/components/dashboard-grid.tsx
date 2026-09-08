@@ -51,6 +51,7 @@ export function DashboardGrid() {
   const [targetId, setTargetId] = useState("");
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
   const [addingHereKey, setAddingHereKey] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"mine" | "everyone">("everyone");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -92,15 +93,20 @@ export function DashboardGrid() {
     return eachDayOfInterval({ start: gridStart, end: gridEnd });
   }, [month]);
 
+  const visibleShifts = useMemo(
+    () => (viewMode === "mine" ? shifts.filter((s) => s.ownerId === userId) : shifts),
+    [shifts, viewMode, userId],
+  );
+
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>();
-    shifts.forEach((s) => {
+    visibleShifts.forEach((s) => {
       const key = s.date.slice(0, 10);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(s);
     });
     return map;
-  }, [shifts]);
+  }, [visibleShifts]);
 
   // Shared by the drag-and-drop path and the tap-to-add fallback below — both
   // end at the same "create a default 19:00–08:00 shift on this day" action.
@@ -188,6 +194,19 @@ export function DashboardGrid() {
             <Button variant="secondary" onClick={() => setMonth(format(addMonths(monthDate(month), 1), "yyyy-MM"))}>
               &rarr;
             </Button>
+          </div>
+          <div className="inline-flex self-center rounded-full border border-ink-200 bg-white p-0.5 text-label">
+            {(["everyone", "mine"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`rounded-full px-3 py-1 font-medium transition-colors ${
+                  viewMode === mode ? "bg-ink-900 text-white" : "text-ink-500 hover:text-ink-800"
+                }`}
+              >
+                {mode === "everyone" ? "Everyone" : "My shifts"}
+              </button>
+            ))}
           </div>
           <div className="flex flex-col items-center gap-1 sm:items-end">
             <NewShiftPill />
